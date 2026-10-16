@@ -1,0 +1,506 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Juan Pablo Nuñez — Música</title>
+<meta name="description" content="Bidukka y Troskare: punk rock, rock, metal y grunge punk.">
+<meta name="theme-color" content="#0a0a0c">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="JP Nuñez">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Metal+Mania&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0a0a0c; --panel:#141417; --linea:#26262b; --texto:#ececec; --suave:#9a9aa2;
+  --bid:#f4f4f4; --tro:#d9302a;
+  --acc:#f4f4f4;
+  --f-bid:Anton,Impact,sans-serif;
+  --f-tro:'Metal Mania',Impact,fantasy;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--texto);font-family:Inter,system-ui,sans-serif;line-height:1.5;padding-bottom:96px}
+h1,h2,h3{font-family:Anton,Impact,sans-serif;font-weight:400;letter-spacing:.03em;text-transform:uppercase}
+a{color:inherit}
+.wrap{max-width:1100px;margin:0 auto;padding:0 18px}
+section{padding:64px 0;border-top:1px solid var(--linea)}
+h2{font-size:clamp(28px,6vw,44px);margin-bottom:6px}
+.sub{color:var(--suave);margin-bottom:26px;max-width:60ch}
+
+/* NAV */
+nav{position:sticky;top:0;z-index:20;background:rgba(10,10,12,.92);backdrop-filter:blur(6px);border-bottom:1px solid var(--linea)}
+nav .wrap{display:flex;gap:18px;align-items:center;height:48px;overflow-x:auto;white-space:nowrap}
+nav b{font-family:Anton;letter-spacing:.05em;margin-right:auto}
+nav a{text-decoration:none;color:var(--suave);font-size:14px}
+nav a:hover{color:#fff}
+#b-instalar{background:var(--texto);color:#000;border:0;border-radius:99px;padding:5px 12px;font:600 12px Inter,sans-serif;cursor:pointer;white-space:nowrap}
+#b-instalar[hidden]{display:none}
+
+/* HERO */
+.hero{padding:70px 0 50px;text-align:center;border:0}
+.hero h1{font-size:clamp(38px,10vw,88px);line-height:1}
+.hero p{color:var(--suave);margin:10px 0 34px}
+.entradas{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:640px){.entradas{grid-template-columns:1fr}}
+.entrada{display:block;text-decoration:none;border:1px solid var(--linea);background:var(--panel);padding:26px 18px;border-radius:6px;transition:.2s}
+.entrada:hover{transform:translateY(-3px);border-color:var(--c)}
+.entrada .logo{height:80px;display:flex;align-items:center;justify-content:center}
+.entrada .logo img{max-height:80px;max-width:100%;object-fit:contain}
+.entrada .txt{display:none;font-family:var(--f-bid);font-size:40px;color:var(--c);text-transform:uppercase}
+.entrada[data-p=troskare] .txt{font-family:var(--f-tro)}
+.entrada small{display:block;color:var(--suave);margin-top:10px}
+.entrada[data-p=bidukka]{--c:var(--bid)}
+.entrada[data-p=troskare]{--c:var(--tro)}
+
+/* FILTROS */
+.filtros{display:flex;gap:8px;margin-bottom:22px;flex-wrap:wrap}
+.filtros button{background:none;border:1px solid var(--linea);color:var(--suave);padding:7px 16px;border-radius:99px;cursor:pointer;font:inherit;font-size:14px}
+.filtros button.on{background:var(--texto);color:#000;border-color:var(--texto)}
+
+/* LANZAMIENTOS */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:16px}
+.card{cursor:pointer;background:var(--panel);border:1px solid var(--linea);border-radius:6px;overflow:hidden;transition:border-color .2s;outline:none}
+.card:hover,.card.sel,.card:focus-visible{border-color:var(--acc)}
+.card[data-p=bidukka]{--acc:var(--bid)}
+.card[data-p=troskare]{--acc:var(--tro)}
+.card > .vinilo-wrap{margin:12px 12px 0;width:calc(100% - 24px)}
+
+/* Carátula + vinilo que sale del sobre */
+.vinilo-wrap{position:relative;aspect-ratio:3/2;width:100%;--t:.9s;--curva:cubic-bezier(.22,.9,.28,1)}
+.portada{position:absolute;left:0;top:0;height:100%;aspect-ratio:1;z-index:2;overflow:hidden;border-radius:3px;
+  background:linear-gradient(160deg,#25252b,#0d0d10 70%);box-shadow:4px 0 14px rgba(0,0,0,.6);
+  transform:translateX(25%);transition:transform var(--t) var(--curva)}
+.card[data-p=troskare] .portada,.detalle[data-p=troskare] .portada{background:linear-gradient(160deg,#3a1210,#0d0d10 70%)}
+.portada img.cover{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
+.portada::after{content:"";position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.7),transparent 48%);pointer-events:none}
+.logo-tapa{position:absolute;z-index:2;left:50%;bottom:7%;transform:translateX(-50%);width:74%;max-height:32%;object-fit:contain;filter:drop-shadow(0 2px 6px rgba(0,0,0,.85))}
+.logo-tapa-txt{display:none;position:absolute;z-index:2;left:0;right:0;bottom:8%;text-align:center;font-family:var(--f-bid);font-size:clamp(20px,6vw,34px);color:var(--acc);text-transform:uppercase;text-shadow:0 2px 6px #000}
+[data-p=troskare] .logo-tapa-txt{font-family:var(--f-tro)}
+.disco{position:absolute;top:0;left:20%;height:100%;aspect-ratio:1;border-radius:50%;z-index:1;
+  background:
+    radial-gradient(circle at 50% 50%, var(--bg) 0 2.5%, var(--acc) 3% 15%, #0c0c0e 15.5% 17%, transparent 17.5%),
+    repeating-radial-gradient(circle at 50% 50%, #0c0c0e 0 2px, #1d1d21 3px 4px);
+  box-shadow:0 0 0 2px #060607;
+  transition:left var(--t) var(--curva)}
+.disco::after{content:"";position:absolute;inset:0;border-radius:50%;
+  background:conic-gradient(from 0deg, rgba(255,255,255,.10), transparent 18%, rgba(255,255,255,.10) 50%, transparent 68%, rgba(255,255,255,.10))}
+@keyframes giro{to{transform:rotate(360deg)}}
+.playing .disco{animation:giro 2.6s linear infinite}
+/* tarjeta elegida (y panel de detalle): el vinilo sale hacia el costado */
+.card.sel .portada,.detalle .portada{transform:none}
+.card.sel .disco,.detalle .disco{left:33.333%}
+.card:not(.sel):hover .disco{left:24%}
+@media(prefers-reduced-motion:reduce){.portada,.disco{transition:none}.playing .disco{animation:none}}
+
+.card .info{padding:10px 12px}
+.marca{font-family:var(--f-bid);font-size:26px;line-height:1.05;text-transform:uppercase;color:var(--acc);letter-spacing:.03em}
+[data-p=troskare] .marca,.detalle[data-p=troskare] .marca{font-family:var(--f-tro);letter-spacing:.05em}
+.card h3{font-size:16px;line-height:1.2;margin-top:2px}
+[data-p=troskare] h3{font-family:var(--f-tro)}
+.card .meta{font-size:12px;color:var(--suave);margin-top:3px}
+.badge{display:inline-block;font-size:11px;border:1px solid var(--acc);color:var(--acc);border-radius:3px;padding:0 6px;margin-right:6px;text-transform:uppercase}
+
+.detalle{display:none;margin-top:22px;background:var(--panel);border:1px solid var(--acc);border-radius:6px;padding:18px;grid-template-columns:320px 1fr;gap:20px}
+.detalle.on{display:grid}
+@media(max-width:640px){.detalle.on{grid-template-columns:1fr}.detalle .vinilo-wrap{max-width:320px}}
+.detalle h3{font-size:28px}
+.detalle .meta{color:var(--suave);font-size:14px;margin-bottom:12px}
+.btn{background:var(--acc);color:#000;border:0;padding:9px 18px;border-radius:4px;font:600 14px Inter;cursor:pointer;margin-bottom:12px}
+.pistas{list-style:none}
+.pistas li{display:flex;gap:12px;align-items:center;padding:9px 6px;border-top:1px solid var(--linea);cursor:pointer;font-size:15px}
+.pistas li:hover{background:#1b1b20}
+.pistas li.act{color:var(--acc)}
+.pistas .n{color:var(--suave);width:22px;text-align:right}
+.pistas .tt{flex:1}
+.pistas .d{color:var(--suave);font-size:13px;min-width:34px;text-align:right}
+.pistas .dl{font-size:12px;color:var(--suave);text-decoration:none;border:1px solid var(--linea);border-radius:99px;padding:1px 10px;white-space:nowrap}
+.pistas .dl:hover{color:#000;background:var(--acc);border-color:var(--acc)}
+.vacio{color:var(--suave);padding:20px;border:1px dashed var(--linea);border-radius:6px}
+
+/* EN VIVO */
+.vivo{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
+.vivo figure{background:var(--panel);border:1px solid var(--linea);border-radius:6px;overflow:hidden}
+.vivo img{width:100%;aspect-ratio:16/9;object-fit:cover;display:block}
+.vivo figcaption{padding:10px 12px;font-size:14px}
+.vivo figcaption span{display:block;color:var(--suave);font-size:12px}
+.nota{font-size:12px;color:var(--suave);margin-top:14px;font-style:italic}
+
+/* PERSONAL */
+.personal{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+.personal figure img{width:100%;aspect-ratio:3/4;object-fit:cover;border-radius:4px;display:block;background:#1b1b20}
+.personal figcaption{font-size:12px;color:var(--suave);margin-top:4px}
+.falta{display:flex;align-items:center;justify-content:center;text-align:center;padding:10px;font-size:12px;color:var(--suave);border:1px dashed var(--linea);border-radius:4px;aspect-ratio:3/4}
+
+/* CONTACTO */
+.contactos{display:flex;flex-wrap:wrap;gap:10px}
+.contactos a{border:1px solid var(--linea);padding:9px 16px;border-radius:99px;text-decoration:none;font-size:14px}
+.contactos a:hover{border-color:#fff}
+footer{text-align:center;color:var(--suave);font-size:12px;padding:30px 0}
+
+/* REPRODUCTOR */
+#player{position:fixed;left:0;right:0;bottom:0;z-index:30;background:#101013;border-top:1px solid var(--linea);padding:10px 14px;display:none}
+#player.on{display:block}
+.pl{max-width:1100px;margin:0 auto;display:grid;grid-template-columns:minmax(0,1.2fr) auto minmax(0,2fr) auto;gap:14px;align-items:center}
+@media(max-width:760px){.pl{grid-template-columns:1fr auto}.pl .seek{grid-column:1/-1;order:3}.pl .vol{display:none}}
+.pl .quien{display:flex;gap:10px;align-items:center;min-width:0}
+.pl .mini{width:44px;height:44px;border-radius:3px;flex:none;background:#1b1b20;overflow:hidden}
+.pl .mini img{width:100%;height:100%;object-fit:cover}
+.pl .t{min-width:0}
+.pl .t b{display:block;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pl .t span{font-size:12px;color:var(--suave)}
+.ctl{display:flex;gap:6px;align-items:center}
+.ctl button{background:none;border:0;color:var(--texto);font-size:20px;width:38px;height:38px;border-radius:50%;cursor:pointer}
+.ctl button:hover{background:#222}
+.ctl .play{background:var(--texto);color:#000;font-size:18px}
+.ctl .play:hover{background:#fff}
+.ctl a.dlbar{color:var(--texto);text-decoration:none;font-size:18px;width:38px;height:38px;display:flex;align-items:center;justify-content:center;border-radius:50%}
+.ctl a.dlbar:hover{background:#222}
+.ctl a.dlbar[hidden]{display:none}
+.seek{display:flex;gap:8px;align-items:center;font-size:12px;color:var(--suave)}
+.seek input{flex:1}
+input[type=range]{accent-color:var(--acc,#fff);height:4px}
+.vol{display:flex;gap:6px;align-items:center;font-size:14px}
+.vol input{width:90px}
+#estado{font-size:12px;color:#ff8a80}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <b>JUAN PABLO NUÑEZ</b>
+    <a href="#musica">Música</a>
+    <a href="#envivo">En vivo</a>
+    <a href="#personal">Detrás de la música</a>
+    <a href="#contacto">Contacto</a>
+    <button id="b-instalar" hidden>⬇ Instalar app</button>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <h1 id="h-nombre"></h1>
+    <p>Dos proyectos, un mismo músico.</p>
+    <div class="entradas" id="entradas"></div>
+  </div>
+</header>
+
+<section id="musica">
+  <div class="wrap">
+    <h2>Música</h2>
+    <p class="sub">Lanzamientos, singles y mixdowns. Tocá una tapa: el vinilo sale del sobre y empieza a sonar.</p>
+    <div class="filtros" id="filtros"></div>
+    <div class="grid" id="grid"></div>
+    <div class="detalle" id="detalle"></div>
+  </div>
+</section>
+
+<section id="envivo">
+  <div class="wrap">
+    <h2>En vivo</h2>
+    <p class="sub">Toques y presentaciones.</p>
+    <div class="vivo" id="vivo"></div>
+    <p class="nota" id="nota-vivo"></p>
+  </div>
+</section>
+
+<section id="personal">
+  <div class="wrap">
+    <h2>Detrás de la música</h2>
+    <p class="sub">La música no la hago solo: esta es la gente que la acompaña.</p>
+    <div class="personal" id="personal"></div>
+  </div>
+</section>
+
+<section id="contacto">
+  <div class="wrap">
+    <h2>Contacto</h2>
+    <p class="sub">Si querés conocerme, escribirme o contratar un toque.</p>
+    <div class="contactos" id="contactos"></div>
+  </div>
+</section>
+
+<footer>© <span id="anio"></span> Juan Pablo Nuñez</footer>
+
+<!-- REPRODUCTOR -->
+<div id="player">
+  <div class="pl">
+    <div class="quien">
+      <div class="mini" id="p-mini"></div>
+      <div class="t"><b id="p-titulo">—</b><span id="p-sub"></span><div id="estado"></div></div>
+    </div>
+    <div class="ctl">
+      <button id="b-prev" title="Anterior">⏮</button>
+      <button id="b-play" class="play" title="Reproducir / pausa">▶</button>
+      <button id="b-next" title="Siguiente">⏭</button>
+      <a id="p-dl" class="dlbar" href="#" download hidden title="Descargar este tema en m4a">⬇</a>
+    </div>
+    <div class="seek">
+      <span id="t-act">0:00</span>
+      <input type="range" id="seek" min="0" max="1000" value="0">
+      <span id="t-dur">0:00</span>
+    </div>
+    <div class="vol">🔊 <input type="range" id="vol" min="0" max="100" value="90"></div>
+  </div>
+  <audio id="audio" preload="metadata"></audio>
+</div>
+
+<script>
+/* =========================================================
+   CONFIGURACIÓN — todo lo que tenés que editar está acá
+   ========================================================= */
+const ARTISTA = "Juan Pablo Nuñez";
+
+const PROYECTOS = {
+  bidukka:  { nombre:"Bidukka",  desde:"Desde marzo de 2023",    generos:"Punk rock · Rock · Acústico", logo:"img/bidukka-logo.png" },
+  troskare: { nombre:"Troskare", desde:"Desde setiembre de 2026", generos:"Metal · Grunge punk",         logo:"img/troskare-logo.png" }
+};
+
+/* Lanzamientos. tipo: "Álbum", "EP", "Single", "Mixdown"...
+   portada: carátula cuadrada (~800 px) en img/portadas/. Si falta, se ve el logo sobre fondo oscuro.
+   Cada tema:  archivo = el que se ESCUCHA en la página (mp3 de buena calidad)
+               m4a     = el que se DESCARGA (más liviano). Es opcional: si falta, no aparece el botón.
+   Los de abajo son EJEMPLOS: reemplazalos por los reales. */
+const LANZAMIENTOS = [
+  { id:"bid-ej1", proyecto:"bidukka",  tipo:"Single", titulo:"Título de ejemplo", anio:2024,
+    portada:"img/portadas/bid-ej1.jpg",
+    pistas:[ {titulo:"Título de ejemplo", archivo:"audio/bidukka/ejemplo-1.mp3", m4a:"audio/bidukka/ejemplo-1.m4a"} ] },
+  { id:"tro-ej1", proyecto:"troskare", tipo:"Mixdown", titulo:"Mixdown de ejemplo", anio:2026,
+    portada:"img/portadas/tro-ej1.jpg",
+    pistas:[ {titulo:"Tema 1", archivo:"audio/troskare/ejemplo-1.mp3", m4a:"audio/troskare/ejemplo-1.m4a"},
+             {titulo:"Tema 2", archivo:"audio/troskare/ejemplo-2.mp3", m4a:"audio/troskare/ejemplo-2.m4a"} ] }
+];
+
+/* En vivo. Las imágenes actuales son de muestra (generadas con IA). */
+const EN_VIVO = [
+  { img:"img/vivo/pub-acustico.jpg", titulo:"Acústico en Eco Sombrío", detalle:"Muestra" },
+  { img:"img/vivo/pub-banda.jpg",    titulo:"Show con banda",          detalle:"Muestra" }
+];
+const NOTA_EN_VIVO = "Imágenes de muestra: se reemplazarán por fotos de toques reales.";
+
+/* Vida personal — fotos chicas (unos 400 px de ancho alcanzan). */
+const PERSONAL = [
+  { img:"img/personal/familia-1.jpg", pie:"" },
+  { img:"img/personal/familia-2.jpg", pie:"" },
+  { img:"img/personal/yo-1.jpg",      pie:"" }
+];
+
+/* Contactos del final. url vacía = no se muestra como enlace. */
+const CONTACTOS = [
+  { etiqueta:"Correo",    url:"mailto:tucorreo@ejemplo.com" },
+  { etiqueta:"Instagram", url:"https://instagram.com/tuusuario" },
+  { etiqueta:"WhatsApp",  url:"https://wa.me/598XXXXXXXX" }
+];
+
+/* =========================================================
+   CÓDIGO
+   ========================================================= */
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt = t => { if(!isFinite(t)) return "0:00"; const m=Math.floor(t/60), s=Math.floor(t%60); return m+":"+String(s).padStart(2,"0"); };
+const limpiar = s => String(s).replace(/[\\/:*?"<>|]/g, "");
+const colorDe = p => p==="troskare" ? "var(--tro)" : "var(--bid)";
+
+$("#h-nombre").textContent = ARTISTA;
+$("#anio").textContent = new Date().getFullYear();
+
+/* Entradas de la portada */
+$("#entradas").innerHTML = Object.entries(PROYECTOS).map(([k,p]) => `
+  <a class="entrada" data-p="${k}" href="#musica" data-filtro="${k}">
+    <div class="logo">
+      <img src="${esc(p.logo)}" alt="${esc(p.nombre)}" onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
+      <span class="txt">${esc(p.nombre)}</span>
+    </div>
+    <small>${esc(p.generos)}<br>${esc(p.desde)}</small>
+  </a>`).join("");
+document.querySelectorAll(".entrada").forEach(a => a.addEventListener("click", () => setFiltro(a.dataset.filtro)));
+
+/* Filtros */
+let filtro = "todos", seleccion = null;
+function pintarFiltros(){
+  const items = [["todos","Todos"], ...Object.entries(PROYECTOS).map(([k,p]) => [k,p.nombre])];
+  $("#filtros").innerHTML = items.map(([k,n]) => `<button data-k="${k}" class="${k===filtro?'on':''}">${esc(n)}</button>`).join("");
+  document.querySelectorAll("#filtros button").forEach(b => b.onclick = () => setFiltro(b.dataset.k));
+}
+function setFiltro(k){ filtro = k; pintarFiltros(); pintarGrid(); }
+
+/* Carátula + logo de la banda + vinilo (detrás de la tapa) */
+function portadaHTML(l){
+  const p = PROYECTOS[l.proyecto];
+  return `<div class="vinilo-wrap"><div class="disco"></div>
+    <div class="portada">
+      ${l.portada ? `<img class="cover" src="${esc(l.portada)}" alt="Portada de ${esc(l.titulo)}" loading="lazy" onerror="this.remove()">` : ""}
+      <img class="logo-tapa" src="${esc(p.logo)}" alt="${esc(p.nombre)}" onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
+      <span class="logo-tapa-txt">${esc(p.nombre)}</span>
+    </div></div>`;
+}
+
+function pintarGrid(){
+  const lista = LANZAMIENTOS.filter(l => filtro==="todos" || l.proyecto===filtro);
+  const g = $("#grid");
+  if(!lista.length){ g.innerHTML = `<div class="vacio">Todavía no hay lanzamientos en esta categoría.</div>`; return; }
+  g.innerHTML = lista.map(l => `
+    <div class="card ${seleccion===l.id?'sel':''}" data-p="${l.proyecto}" data-id="${l.id}" tabindex="0" role="button" aria-label="Escuchar ${esc(l.titulo)}">
+      ${portadaHTML(l)}
+      <div class="info"><div class="marca">${esc(PROYECTOS[l.proyecto].nombre)}</div><h3>${esc(l.titulo)}</h3>
+        <div class="meta"><span class="badge">${esc(l.tipo)}</span>${esc(l.anio)}</div>
+      </div>
+    </div>`).join("");
+  g.querySelectorAll(".card").forEach(c => {
+    c.onclick = () => abrir(c.dataset.id);
+    c.onkeydown = e => { if(e.key==="Enter" || e.key===" "){ e.preventDefault(); abrir(c.dataset.id); } };
+  });
+  marcarSonando();
+}
+
+/* Tocar una tapa: el vinilo sale del sobre y suena. Si ya es el que suena, alterna pausa/play. */
+function abrir(id){
+  const l = LANZAMIENTOS.find(x => x.id===id);
+  const mismo = !!cola && cola.id===id;
+  seleccion = id;
+  const d = $("#detalle");
+  const pr = PROYECTOS[l.proyecto];
+  d.dataset.p = l.proyecto;
+  d.dataset.id = l.id;
+  d.style.setProperty("--acc", colorDe(l.proyecto));
+  d.innerHTML = `
+    ${portadaHTML(l)}
+    <div>
+      <div class="marca">${esc(pr.nombre)}</div>
+      <h3>${esc(l.titulo)}</h3>
+      <div class="meta">${esc(l.tipo)} · ${esc(l.anio)}</div>
+      <button class="btn" id="b-todo">▶ Reproducir todo</button>
+      <ul class="pistas">${l.pistas.map((p,i) => `
+        <li data-i="${i}"><span class="n">${i+1}</span><span class="tt">${esc(p.titulo)}</span><span class="d" data-d="${i}"></span>${p.m4a ? `<a class="dl" href="${esc(p.m4a)}" download="${esc(limpiar(pr.nombre+" - "+p.titulo))}.m4a" title="Descargar en m4a">⬇ m4a</a>` : ""}</li>`).join("")}</ul>
+    </div>`;
+  d.classList.add("on");
+  d.querySelector("#b-todo").onclick = () => reproducir(l,0);
+  d.querySelectorAll(".pistas li").forEach(li => li.onclick = e => { if(e.target.closest(".dl")) return; reproducir(l, +li.dataset.i); });
+  /* se cambian clases sobre las tarjetas existentes (sin repintarlas) para que se vea la animación */
+  document.querySelectorAll(".card").forEach(c => c.classList.toggle("sel", c.dataset.id===id));
+  if(mismo){ audio.paused ? audio.play().catch(()=>{}) : audio.pause(); } else { reproducir(l,0); }
+  marcarPista();
+  marcarSonando();
+  d.scrollIntoView({behavior:"smooth", block:"nearest"});
+}
+
+/* Reproductor */
+const audio = $("#audio");
+let cola = null, idx = 0;
+
+function reproducir(l, i){
+  cola = l; idx = i;
+  cargar();
+}
+function cargar(){
+  const p = cola.pistas[idx], pr = PROYECTOS[cola.proyecto];
+  $("#player").classList.add("on");
+  $("#player").style.setProperty("--acc", colorDe(cola.proyecto));
+  $("#p-titulo").textContent = p.titulo;
+  $("#p-sub").textContent = pr.nombre + " · " + cola.titulo;
+  $("#p-mini").innerHTML = cola.portada
+    ? `<img src="${esc(cola.portada)}" alt="" onerror="this.onerror=null;this.src='${esc(pr.logo)}';this.style.objectFit='contain'">`
+    : `<img src="${esc(pr.logo)}" alt="" style="object-fit:contain">`;
+  $("#estado").textContent = "";
+  const dl = $("#p-dl");
+  if(p.m4a){ dl.href = p.m4a; dl.download = limpiar(pr.nombre+" - "+p.titulo)+".m4a"; dl.hidden = false; } else { dl.hidden = true; }
+  audio.src = p.archivo;
+  audio.play().catch(()=>{});
+  try{
+    if("mediaSession" in navigator && window.MediaMetadata){
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title:p.titulo, artist:pr.nombre, album:cola.titulo,
+        artwork: cola.portada ? [{src:new URL(cola.portada, location.href).href}] : []
+      });
+    }
+  }catch(e){}
+  marcarPista();
+}
+function marcarPista(){
+  document.querySelectorAll(".pistas li").forEach(li => {
+    li.classList.toggle("act", !!cola && seleccion===cola.id && +li.dataset.i===idx);
+  });
+}
+/* El vinilo gira solo mientras suena su lanzamiento */
+function marcarSonando(){
+  const on = !!cola && !audio.paused;
+  document.querySelectorAll(".card,.detalle").forEach(el => el.classList.toggle("playing", on && el.dataset.id===cola.id));
+}
+function siguiente(){ if(!cola) return; if(idx < cola.pistas.length-1){ idx++; cargar(); } else { audio.pause(); } }
+function anterior(){ if(!cola) return; if(audio.currentTime>3 || idx===0){ audio.currentTime=0; } else { idx--; cargar(); } }
+
+$("#b-play").onclick = () => { if(!audio.src) return; audio.paused ? audio.play() : audio.pause(); };
+$("#b-next").onclick = siguiente;
+$("#b-prev").onclick = anterior;
+audio.addEventListener("play",  () => { $("#b-play").textContent = "⏸"; marcarSonando(); });
+audio.addEventListener("pause", () => { $("#b-play").textContent = "▶"; marcarSonando(); });
+audio.addEventListener("ended", siguiente);
+audio.addEventListener("error", () => { $("#estado").textContent = "No se encontró el archivo de audio."; });
+audio.addEventListener("loadedmetadata", () => {
+  $("#t-dur").textContent = fmt(audio.duration);
+  const d = document.querySelector(`.pistas [data-d="${idx}"]`);
+  if(d && seleccion===cola.id) d.textContent = fmt(audio.duration);
+});
+let arrastrando = false;
+audio.addEventListener("timeupdate", () => {
+  $("#t-act").textContent = fmt(audio.currentTime);
+  if(!arrastrando && audio.duration) $("#seek").value = audio.currentTime/audio.duration*1000;
+});
+$("#seek").addEventListener("input", e => { arrastrando = true; if(audio.duration) $("#t-act").textContent = fmt(e.target.value/1000*audio.duration); });
+$("#seek").addEventListener("change", e => { if(audio.duration) audio.currentTime = e.target.value/1000*audio.duration; arrastrando = false; });
+$("#vol").addEventListener("input", e => audio.volume = e.target.value/100);
+audio.volume = .9;
+
+/* Controles de la pantalla de bloqueo del celular */
+try{
+  if("mediaSession" in navigator){
+    navigator.mediaSession.setActionHandler("play", () => audio.play());
+    navigator.mediaSession.setActionHandler("pause", () => audio.pause());
+    navigator.mediaSession.setActionHandler("previoustrack", anterior);
+    navigator.mediaSession.setActionHandler("nexttrack", siguiente);
+  }
+}catch(e){}
+
+/* En vivo */
+$("#vivo").innerHTML = EN_VIVO.map(v => `
+  <figure>
+    <img src="${esc(v.img)}" alt="${esc(v.titulo)}" loading="lazy" onerror="this.style.background='#1b1b20'">
+    <figcaption>${esc(v.titulo)}<span>${esc(v.detalle||"")}</span></figcaption>
+  </figure>`).join("");
+$("#nota-vivo").textContent = NOTA_EN_VIVO;
+
+/* Personal */
+$("#personal").innerHTML = PERSONAL.map(p => `
+  <figure>
+    <img src="${esc(p.img)}" alt="${esc(p.pie||'Foto personal')}" loading="lazy"
+         onerror="this.outerHTML='<div class=falta>Foto pendiente</div>'">
+    ${p.pie ? `<figcaption>${esc(p.pie)}</figcaption>` : ""}
+  </figure>`).join("");
+
+/* Contactos */
+$("#contactos").innerHTML = CONTACTOS.filter(c => c.url).map(c =>
+  `<a href="${esc(c.url)}" target="_blank" rel="noopener">${esc(c.etiqueta)}</a>`).join("");
+
+/* Instalar como app */
+let promptInstalar = null;
+window.addEventListener("beforeinstallprompt", e => { e.preventDefault(); promptInstalar = e; $("#b-instalar").hidden = false; });
+$("#b-instalar").onclick = async () => {
+  if(!promptInstalar) return;
+  promptInstalar.prompt();
+  try{ await promptInstalar.userChoice; }catch(_){}
+  promptInstalar = null; $("#b-instalar").hidden = true;
+};
+window.addEventListener("appinstalled", () => { $("#b-instalar").hidden = true; });
+try{ if("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{}); }catch(e){}
+
+pintarFiltros();
+pintarGrid();
+</script>
+</body>
+</html>
