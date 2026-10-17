@@ -266,15 +266,13 @@ const PROYECTOS = {
    portada: carátula cuadrada (~800 px) en img/portadas/. Si falta, se ve el logo sobre fondo oscuro.
    Cada tema:  archivo = el que se ESCUCHA en la página (mp3 de buena calidad)
                m4a     = el que se DESCARGA (más liviano). Es opcional: si falta, no aparece el botón.
-   Los de abajo son EJEMPLOS: reemplazalos por los reales. */
+   Este lanzamiento es de MUESTRA (sin carátula ni m4a todavía): reemplazalo y sumá los reales. */
 const LANZAMIENTOS = [
-  { id:"bid-ej1", proyecto:"bidukka",  tipo:"Single", titulo:"Título de ejemplo", anio:2024,
-    portada:"img/portadas/bid-ej1.jpg",
-    pistas:[ {titulo:"Título de ejemplo", archivo:"audio/bidukka/ejemplo-1.mp3", m4a:"audio/bidukka/ejemplo-1.m4a"} ] },
-  { id:"tro-ej1", proyecto:"troskare", tipo:"Mixdown", titulo:"Mixdown de ejemplo", anio:2026,
-    portada:"img/portadas/tro-ej1.jpg",
-    pistas:[ {titulo:"Tema 1", archivo:"audio/troskare/ejemplo-1.mp3", m4a:"audio/troskare/ejemplo-1.m4a"},
-             {titulo:"Tema 2", archivo:"audio/troskare/ejemplo-2.mp3", m4a:"audio/troskare/ejemplo-2.m4a"} ] }
+  { id:"tro-muestra", proyecto:"troskare", tipo:"Muestra", titulo:"Temas de muestra", anio:2026,
+    portada:"img/portadas/tro-muestra.jpg",
+    pistas:[ {titulo:"Escupir",            archivo:"audio/troskare/escupir.mp3"},
+             {titulo:"Impacto seco",       archivo:"audio/troskare/impacto-seco.mp3"},
+             {titulo:"Calaveras de trapo", archivo:"audio/troskare/calaveras-de-trapo.mp3"} ] }
 ];
 
 /* En vivo. Las imágenes actuales son de muestra (generadas con IA). */
