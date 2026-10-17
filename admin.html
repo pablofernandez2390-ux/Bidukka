@@ -71,7 +71,9 @@ import {getDatabase,ref,get,set,remove} from "https://www.gstatic.com/firebasejs
 /* ====== AJUSTES ====== */
 const ADMIN_EMAIL = "pablofernandez2390@gmail.com";
 const OWNER = "pablofernandez2390-ux", REPO = "Bidukka";
-const PROYECTOS = {bidukka:"Bidukka", troskare:"Troskare"};
+const PROYECTOS = {bidukka:"Bidukka", troskare:"Troskare", mixto:"Mixdown (temas de las dos bandas)"};
+const bandaDeArchivo = f => /^audio\/bidukka\//.test(f) ? "bidukka" : /^audio\/troskare\//.test(f) ? "troskare" : "";
+const audiosDe = proy => proy==="mixto" ? [...repo.audio.bidukka, ...repo.audio.troskare] : (repo.audio[proy]||[]);
 const TIPOS = ["Single","EP","Álbum","Mixdown","Muestra"];
 
 const $ = s => document.querySelector(s);
@@ -155,7 +157,7 @@ function opciones(lista, actual, vacio){
 }
 
 function pintarEditor(){
-  const e = edit, audios = repo.audio[e.proyecto]||[];
+  const e = edit, mixto = e.proyecto==="mixto", audios = audiosDe(e.proyecto);
   const usados = new Set(e.pistas.map(p=>p.archivo));
   const libres = audios.filter(f=>!usados.has(f) && !docs.some(d=>d.id!==e.id && (d.pistas||[]).some(p=>p.archivo===f)));
   $("#app").innerHTML = `
@@ -187,7 +189,7 @@ function pintarEditor(){
         </div>`).join("") || `<p style="color:var(--suave)">Sin temas todavía.</p>`}
       <div class="fila" style="margin-top:12px">
         <button id="b-add">+ Agregar tema</button>
-        <button id="b-libres" ${libres.length?'':'disabled'}>Agregar los ${libres.length} archivo(s) sin usar de ${esc(PROYECTOS[e.proyecto])}</button>
+        <button id="b-libres" ${libres.length && !mixto ?'':'disabled'} ${mixto?'hidden':''}>Agregar los ${libres.length} archivo(s) sin usar de ${esc(PROYECTOS[e.proyecto])}</button>
       </div>
     </div>
     <div class="fila">
@@ -228,7 +230,7 @@ function pintarEditor(){
   q("#b-guardar").onclick = async () => {
     const titulo = String(e.titulo).trim();
     if(!titulo) return aviso("Falta el título.","mal");
-    const pistas = e.pistas.filter(p=>p.archivo).map(p=>{ const o={titulo:(p.titulo||tituloDe(p.archivo)).trim(), archivo:p.archivo}; if(p.m4a) o.m4a=p.m4a; return o; });
+    const pistas = e.pistas.filter(p=>p.archivo).map(p=>{ const o={titulo:(p.titulo||tituloDe(p.archivo)).trim(), archivo:p.archivo}; if(p.m4a) o.m4a=p.m4a; const b=bandaDeArchivo(p.archivo); if(e.proyecto==='mixto' && b) o.proyecto=b; return o; });
     if(!pistas.length) return aviso("Agregá al menos un tema con su archivo de audio.","mal");
     const id = e.id || slug(e.proyecto+"-"+titulo) || ("lanz-"+Date.now());
     if(esNuevo && docs.some(d=>d.id===id)) return aviso("Ya existe un lanzamiento con ese título para esa banda.","mal");

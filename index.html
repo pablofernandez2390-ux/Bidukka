@@ -69,6 +69,7 @@ nav a:hover{color:#fff}
 .card:hover,.card.sel,.card:focus-visible{border-color:var(--acc)}
 .card[data-p=bidukka]{--acc:var(--bid)}
 .card[data-p=troskare]{--acc:var(--tro)}
+.card[data-p=mixto]{--acc:#e8e8ee}
 .card > .vinilo-wrap{margin:12px 12px 0;width:calc(100% - 24px)}
 
 /* Carátula + vinilo que sale del sobre */
@@ -101,6 +102,8 @@ nav a:hover{color:#fff}
 .card .info{padding:10px 12px}
 .marca{font-family:var(--f-bid);font-size:26px;line-height:1.05;text-transform:uppercase;color:var(--acc);letter-spacing:.03em}
 [data-p=troskare] .marca,.detalle[data-p=troskare] .marca{font-family:var(--f-tro);letter-spacing:.05em}
+.marca.mix{font-size:19px}
+.pistas .tb{font-size:11px;color:var(--suave);border:1px solid var(--linea);border-radius:3px;padding:0 5px;margin-left:8px;white-space:nowrap}
 .card h3{font-size:16px;line-height:1.2;margin-top:2px}
 [data-p=troskare] h3{font-family:var(--f-tro)}
 .card .meta{font-size:12px;color:var(--suave);margin-top:3px}
@@ -317,7 +320,10 @@ const IC = {
 };
 $("#b-prev").innerHTML = IC.prev; $("#b-play").innerHTML = IC.play; $("#b-next").innerHTML = IC.next;
 $("#p-dl").innerHTML = IC.dl; $("#ic-vol").innerHTML = IC.vol;
-const colorDe = p => p==="troskare" ? "var(--tro)" : "var(--bid)";
+const MIXTO = {nombre:"Bidukka + Troskare", logo:""};          /* mixdowns con temas de las dos bandas */
+const proy = k => PROYECTOS[k] || MIXTO;
+const bandaDe = (l,t) => PROYECTOS[t.proyecto] || proy(l.proyecto);  /* banda de cada tema */
+const colorDe = p => p==="troskare" ? "var(--tro)" : p==="mixto" ? "#e8e8ee" : "var(--bid)";
 
 $("#h-nombre").textContent = ARTISTA;
 $("#anio").textContent = new Date().getFullYear();
@@ -344,21 +350,21 @@ function setFiltro(k){ filtro = k; pintarFiltros(); pintarGrid(); }
 
 /* Carátula (con su logo incluido) + vinilo con el logo en la etiqueta */
 function portadaHTML(l){
-  const p = PROYECTOS[l.proyecto];
-  const sinTapa = `<img class="logo-tapa" src="${esc(p.logo)}" alt="${esc(p.nombre)}" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"><span class="logo-tapa-txt">${esc(p.nombre)}</span>`;
+  const p = proy(l.proyecto);
+  const sinTapa = !p.logo ? `<span class="logo-tapa-txt" style="display:block">Mixdown</span>` : `<img class="logo-tapa" src="${esc(p.logo)}" alt="${esc(p.nombre)}" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"><span class="logo-tapa-txt">${esc(p.nombre)}</span>`;
   /* la carátula ya trae su logo: la página solo agrega el logo si no hay carátula */
-  return `<div class="vinilo-wrap"><div class="disco"><img class="etq" src="${esc(p.logo)}" alt="" onerror="this.remove()"></div>
+  return `<div class="vinilo-wrap"><div class="disco">${p.logo ? `<img class="etq" src="${esc(p.logo)}" alt="" onerror="this.remove()">` : ""}</div>
     <div class="portada">${l.portada ? `<img class="cover" src="${esc(l.portada)}" alt="Portada de ${esc(l.titulo)}" loading="lazy" onerror="this.outerHTML=this.dataset.f" data-f="${esc(sinTapa)}">` : sinTapa}</div></div>`;
 }
 
 function pintarGrid(){
-  const lista = CATALOGO.filter(l => filtro==="todos" || l.proyecto===filtro);
+  const lista = CATALOGO.filter(l => filtro==="todos" || l.proyecto===filtro || l.proyecto==="mixto");
   const g = $("#grid");
   if(!lista.length){ g.innerHTML = `<div class="vacio">Todavía no hay lanzamientos en esta categoría.</div>`; return; }
   g.innerHTML = lista.map(l => `
     <div class="card ${seleccion===l.id?'sel':''}" data-p="${l.proyecto}" data-id="${l.id}" tabindex="0" role="button" aria-label="Escuchar ${esc(l.titulo)}">
       ${portadaHTML(l)}
-      <div class="info"><div class="marca">${esc(PROYECTOS[l.proyecto].nombre)}</div><h3>${esc(l.titulo)}</h3>
+      <div class="info"><div class="marca ${l.proyecto==="mixto"?"mix":""}">${esc(proy(l.proyecto).nombre)}</div><h3>${esc(l.titulo)}</h3>
         <div class="meta"><span class="badge">${esc(l.tipo)}</span>${esc(l.anio)}</div>
       </div>
     </div>`).join("");
@@ -375,19 +381,19 @@ function abrir(id){
   const mismo = !!cola && cola.id===id;
   seleccion = id;
   const d = $("#detalle");
-  const pr = PROYECTOS[l.proyecto];
+  const pr = proy(l.proyecto);
   d.dataset.p = l.proyecto;
   d.dataset.id = l.id;
   d.style.setProperty("--acc", colorDe(l.proyecto));
   d.innerHTML = `
     ${portadaHTML(l)}
     <div>
-      <div class="marca">${esc(pr.nombre)}</div>
+      <div class="marca ${l.proyecto==="mixto"?"mix":""}">${esc(pr.nombre)}</div>
       <h3>${esc(l.titulo)}</h3>
       <div class="meta">${esc(l.tipo)} · ${esc(l.anio)}</div>
       <button class="btn" id="b-todo">${IC.play} Reproducir todo</button>
       <ul class="pistas">${l.pistas.map((p,i) => `
-        <li data-i="${i}"><span class="n">${i+1}</span><span class="tt">${esc(p.titulo)}</span><span class="d" data-d="${i}"></span>${p.m4a ? `<a class="dl" href="${esc(p.m4a)}" download="${esc(limpiar(pr.nombre+" - "+p.titulo))}.m4a" title="Descargar en m4a">${IC.dl} m4a</a>` : ""}</li>`).join("")}</ul>
+        <li data-i="${i}"><span class="n">${i+1}</span><span class="tt">${esc(p.titulo)}${l.proyecto==="mixto" ? `<span class="tb">${esc(bandaDe(l,p).nombre)}</span>` : ""}</span><span class="d" data-d="${i}"></span>${p.m4a ? `<a class="dl" href="${esc(p.m4a)}" download="${esc(limpiar(bandaDe(l,p).nombre+" - "+p.titulo))}.m4a" title="Descargar en m4a">${IC.dl} m4a</a>` : ""}</li>`).join("")}</ul>
     </div>`;
   d.classList.add("on");
   d.querySelector("#b-todo").onclick = () => reproducir(l,0);
@@ -411,7 +417,7 @@ async function cargarCatalogo(){
     const j = await r.json();
     clearTimeout(to);
     const lista = Object.entries(j||{}).map(([id,o]) => ({...o, id, pistas: Array.isArray(o.pistas) ? o.pistas.filter(Boolean) : Object.values(o.pistas||{})}));
-    CATALOGO = lista.filter(l => l.publicado===true && PROYECTOS[l.proyecto] && l.pistas.length)
+    CATALOGO = lista.filter(l => l.publicado===true && (PROYECTOS[l.proyecto] || l.proyecto==="mixto") && l.pistas.length)
                     .sort((a,b) => (a.orden||0)-(b.orden||0));
     try{ localStorage.setItem("catalogo", JSON.stringify(CATALOGO)); }catch(e){}
   }catch(e){
@@ -429,23 +435,23 @@ function reproducir(l, i){
   cargar();
 }
 function cargar(){
-  const p = cola.pistas[idx], pr = PROYECTOS[cola.proyecto];
+  const p = cola.pistas[idx], pr = proy(cola.proyecto), bn = bandaDe(cola,p);
   $("#player").classList.add("on");
   $("#player").style.setProperty("--acc", colorDe(cola.proyecto));
   $("#p-titulo").textContent = p.titulo;
-  $("#p-sub").textContent = pr.nombre + " · " + cola.titulo;
+  $("#p-sub").textContent = bn.nombre + " · " + cola.titulo;
   $("#p-mini").innerHTML = cola.portada
-    ? `<img src="${esc(cola.portada)}" alt="" onerror="this.onerror=null;this.src='${esc(pr.logo)}';this.style.objectFit='contain'">`
-    : `<img src="${esc(pr.logo)}" alt="" style="object-fit:contain">`;
+    ? `<img src="${esc(cola.portada)}" alt="" onerror="this.onerror=null;this.src='${esc(pr.logo||"icons/icon-192.png")}';this.style.objectFit='contain'">`
+    : `<img src="${esc(pr.logo||"icons/icon-192.png")}" alt="" style="object-fit:contain">`;
   $("#estado").textContent = "";
   const dl = $("#p-dl");
-  if(p.m4a){ dl.href = p.m4a; dl.download = limpiar(pr.nombre+" - "+p.titulo)+".m4a"; dl.hidden = false; } else { dl.hidden = true; }
+  if(p.m4a){ dl.href = p.m4a; dl.download = limpiar(bn.nombre+" - "+p.titulo)+".m4a"; dl.hidden = false; } else { dl.hidden = true; }
   audio.src = p.archivo;
   audio.play().catch(()=>{});
   try{
     if("mediaSession" in navigator && window.MediaMetadata){
       navigator.mediaSession.metadata = new MediaMetadata({
-        title:p.titulo, artist:pr.nombre, album:cola.titulo,
+        title:p.titulo, artist:bn.nombre, album:cola.titulo,
         artwork: cola.portada ? [{src:new URL(cola.portada, location.href).href}] : []
       });
     }
