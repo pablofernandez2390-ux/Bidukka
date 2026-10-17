@@ -66,7 +66,7 @@ label{display:block;font-size:12px;color:var(--suave);margin:10px 0 4px}
 <script type="module">
 import {initializeApp} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {getAuth,GoogleAuthProvider,signInWithPopup,signOut,onAuthStateChanged} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import {getFirestore,collection,getDocs,doc,setDoc,deleteDoc} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import {getDatabase,ref,get,set,remove} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
 /* ====== AJUSTES ====== */
 const ADMIN_EMAIL = "pablofernandez2390@gmail.com";
@@ -79,11 +79,11 @@ const esc = s => String(s??"").replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>
 function aviso(t,tipo){ const m=$("#msg"); m.textContent=t; m.className="msg "+(tipo||""); m.hidden=!t; if(t&&tipo==="ok") setTimeout(()=>{ if(m.textContent===t) m.hidden=true; },3500); }
 
 const cfg = window.FIREBASE_CONFIG || {};
-if(!cfg.apiKey || !cfg.projectId){
+if(!cfg.apiKey || !cfg.databaseURL){
   aviso("Falta completar firebase-config.js con los datos de tu proyecto de Firebase.","mal");
   throw new Error("sin config");
 }
-const app = initializeApp(cfg), auth = getAuth(app), db = getFirestore(app);
+const app = initializeApp(cfg), auth = getAuth(app), db = getDatabase(app);
 
 /* ====== archivos del repo (API pública de GitHub) ====== */
 const EXT_AUDIO = /\.(m4a|mp3|aac|ogg|wav|flac)$/i, EXT_IMG = /\.(jpe?g|png|webp)$/i;
@@ -108,8 +108,9 @@ async function leerRepo(){
 /* ====== datos ====== */
 let docs = [], edit = null, esNuevo = false;
 async function leerDocs(){
-  const s = await getDocs(collection(db,"lanzamientos"));
-  docs = s.docs.map(d=>({id:d.id, ...d.data()})).sort((a,b)=>(a.orden||0)-(b.orden||0));
+  const s = await get(ref(db,"lanzamientos")), v = s.val() || {};
+  docs = Object.entries(v).map(([id,o])=>({id, ...o, pistas: Array.isArray(o.pistas) ? o.pistas.filter(Boolean) : Object.values(o.pistas||{})}))
+               .sort((a,b)=>(a.orden||0)-(b.orden||0));
 }
 const slug = s => s.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
 const nombreArchivo = f => f.split("/").pop();
@@ -141,7 +142,7 @@ function pintarLista(){
     it.querySelector('[data-a=edit]').onclick = () => { esNuevo=false; edit = JSON.parse(JSON.stringify(docs.find(d=>d.id===id))); pintar(); };
     it.querySelector('[data-a=pub]').onclick = async () => {
       const d = docs.find(x=>x.id===id);
-      try{ const {id:_,...datos}=d; datos.publicado=!d.publicado; await setDoc(doc(db,"lanzamientos",id),datos); await leerDocs(); pintar(); aviso(datos.publicado?"Publicado.":"Ocultado.","ok"); }
+      try{ const {id:_,...datos}=d; datos.publicado=!d.publicado; await set(ref(db,"lanzamientos/"+id),datos); await leerDocs(); pintar(); aviso(datos.publicado?"Publicado.":"Ocultado.","ok"); }
       catch(e){ aviso("No se pudo guardar: "+e.message,"mal"); }
     };
   });
@@ -221,7 +222,7 @@ function pintarEditor(){
   const bb = q("#b-borrar");
   if(bb) bb.onclick = async () => {
     if(!confirm('¿Borrar "'+e.titulo+'" del catálogo? (Los archivos del repositorio no se tocan.)')) return;
-    try{ await deleteDoc(doc(db,"lanzamientos",e.id)); await leerDocs(); edit=null; pintar(); aviso("Borrado.","ok"); }
+    try{ await remove(ref(db,"lanzamientos/"+e.id)); await leerDocs(); edit=null; pintar(); aviso("Borrado.","ok"); }
     catch(err){ aviso("No se pudo borrar: "+err.message,"mal"); }
   };
   q("#b-guardar").onclick = async () => {
@@ -232,7 +233,7 @@ function pintarEditor(){
     const id = e.id || slug(e.proyecto+"-"+titulo) || ("lanz-"+Date.now());
     if(esNuevo && docs.some(d=>d.id===id)) return aviso("Ya existe un lanzamiento con ese título para esa banda.","mal");
     const datos = {proyecto:e.proyecto, tipo:e.tipo, titulo, anio:Number(e.anio)||new Date().getFullYear(), orden:Number(e.orden)||0, publicado:!!e.publicado, portada:e.portada||"", pistas};
-    try{ await setDoc(doc(db,"lanzamientos",id),datos); await leerDocs(); edit=null; pintar(); aviso("Guardado."+(datos.publicado?" Ya se ve en la página.":" Quedó oculto."),"ok"); }
+    try{ await set(ref(db,"lanzamientos/"+id),datos); await leerDocs(); edit=null; pintar(); aviso("Guardado."+(datos.publicado?" Ya se ve en la página.":" Quedó oculto."),"ok"); }
     catch(err){ aviso("No se pudo guardar: "+err.message,"mal"); }
   };
 }

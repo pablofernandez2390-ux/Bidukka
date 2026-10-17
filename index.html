@@ -400,32 +400,18 @@ function abrir(id){
   d.scrollIntoView({behavior:"smooth", block:"nearest"});
 }
 
-/* Catálogo publicado desde el panel (Firestore). Lectura pública por REST, sin librerías. */
+/* Catálogo publicado desde el panel (Realtime Database). Lectura pública por REST, sin librerías. */
 let CATALOGO = LANZAMIENTOS;
 const FB = window.FIREBASE_CONFIG || {};
-function fsVal(v){
-  if(!v) return null;
-  if("stringValue" in v) return v.stringValue;
-  if("integerValue" in v) return +v.integerValue;
-  if("doubleValue" in v) return v.doubleValue;
-  if("booleanValue" in v) return v.booleanValue;
-  if("arrayValue" in v) return (v.arrayValue.values||[]).map(fsVal);
-  if("mapValue" in v){ const o={}, f=v.mapValue.fields||{}; for(const k in f) o[k]=fsVal(f[k]); return o; }
-  return null;
-}
 async function cargarCatalogo(){
   const ctl = new AbortController(), to = setTimeout(() => ctl.abort(), 7000);
   try{
-    const lista = []; let tok = "";
-    do{
-      const url = "https://firestore.googleapis.com/v1/projects/"+encodeURIComponent(FB.projectId)+"/databases/(default)/documents/lanzamientos?pageSize=100&key="+encodeURIComponent(FB.apiKey)+(tok ? "&pageToken="+encodeURIComponent(tok) : "");
-      const r = await fetch(url, {signal:ctl.signal});
-      if(!r.ok) throw new Error("HTTP "+r.status);
-      const j = await r.json(); tok = j.nextPageToken || "";
-      (j.documents||[]).forEach(d => { const o={}, f=d.fields||{}; for(const k in f) o[k]=fsVal(f[k]); o.id = d.name.split("/").pop(); lista.push(o); });
-    }while(tok);
+    const r = await fetch(FB.databaseURL.replace(/\/+$/,"")+"/lanzamientos.json", {signal:ctl.signal});
+    if(!r.ok) throw new Error("HTTP "+r.status);
+    const j = await r.json();
     clearTimeout(to);
-    CATALOGO = lista.filter(l => l.publicado===true && PROYECTOS[l.proyecto] && Array.isArray(l.pistas) && l.pistas.length)
+    const lista = Object.entries(j||{}).map(([id,o]) => ({...o, id, pistas: Array.isArray(o.pistas) ? o.pistas.filter(Boolean) : Object.values(o.pistas||{})}));
+    CATALOGO = lista.filter(l => l.publicado===true && PROYECTOS[l.proyecto] && l.pistas.length)
                     .sort((a,b) => (a.orden||0)-(b.orden||0));
     try{ localStorage.setItem("catalogo", JSON.stringify(CATALOGO)); }catch(e){}
   }catch(e){
@@ -544,7 +530,7 @@ window.addEventListener("appinstalled", () => { $("#b-instalar").hidden = true; 
 try{ if("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{}); }catch(e){}
 
 pintarFiltros();
-if(FB.projectId && FB.apiKey){
+if(FB.databaseURL){
   $("#grid").innerHTML = `<div class="vacio">Cargando…</div>`;
   cargarCatalogo().then(pintarGrid);
 }else{
