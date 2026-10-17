@@ -2,7 +2,7 @@
    - Guarda lo básico (página, logos, íconos) para que abra rápido y funcione la instalación.
    - Primero intenta la red, así cada versión nueva que subas a GitHub se ve enseguida.
    - NO toca los audios: no se guardan en el teléfono (no ocupan almacenamiento). */
-const CACHE = "jpn-musica-v1";
+const CACHE = "jpn-musica-v2";
 const NUCLEO = [
   "./", "index.html", "manifest.json",
   "icons/icon-192.png", "icons/icon-512.png",

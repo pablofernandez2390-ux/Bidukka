@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Panel — Música</title>
+<style>
+:root{--bg:#0a0a0c;--panel:#141418;--linea:#2a2a31;--texto:#ececf0;--suave:#9a9aa5;--bid:#e23a2e;--tro:#c9302c;--ok:#3ec27a;--mal:#ff6b5e}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--texto);font:15px/1.4 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;padding:16px;max-width:860px;margin:0 auto}
+h1{font-size:20px}h2{font-size:17px;margin-bottom:10px}
+header{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:16px}
+.fila{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+button,select,input{font:inherit;color:var(--texto)}
+button{background:#1f1f25;border:1px solid var(--linea);border-radius:6px;padding:8px 14px;cursor:pointer}
+button:hover{border-color:#555}
+button.pri{background:var(--texto);color:#000;border-color:var(--texto);font-weight:600}
+button.mal{color:var(--mal)}
+button.mini{padding:4px 9px;font-size:13px}
+input,select{background:#0f0f13;border:1px solid var(--linea);border-radius:6px;padding:8px 10px;width:100%;min-width:0}
+label{display:block;font-size:12px;color:var(--suave);margin:10px 0 4px}
+.panel{background:var(--panel);border:1px solid var(--linea);border-radius:8px;padding:14px;margin-bottom:14px}
+.msg{padding:10px 12px;border-radius:6px;margin-bottom:12px;background:#1b1b20;border:1px solid var(--linea)}
+.msg.ok{border-color:var(--ok)}.msg.mal{border-color:var(--mal)}
+.item{display:flex;gap:12px;align-items:center;padding:10px 0;border-top:1px solid var(--linea)}
+.item:first-of-type{border-top:0}
+.item img,.item .sin{width:54px;height:54px;border-radius:4px;object-fit:cover;background:#1b1b20;flex:none}
+.item .t{flex:1;min-width:0}.item .t b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.item .t small{color:var(--suave)}
+.tag{font-size:11px;border:1px solid var(--linea);border-radius:99px;padding:1px 8px;margin-left:6px}
+.tag.on{color:var(--ok);border-color:var(--ok)}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.g3{display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px}
+@media(max-width:560px){.g2,.g3{grid-template-columns:1fr}}
+.pista{border:1px solid var(--linea);border-radius:6px;padding:10px;margin-top:10px;background:#101014}
+.pista .cab{display:flex;gap:6px;align-items:center;margin-bottom:6px}
+.pista .cab span{color:var(--suave);width:22px}
+.aviso{color:var(--mal);font-size:12px;margin-top:3px}
+.prev{width:120px;height:120px;border-radius:6px;object-fit:cover;background:#1b1b20;margin-top:8px}
+.chk{display:flex;gap:8px;align-items:center;margin-top:14px;font-size:15px;color:var(--texto)}
+.chk input{width:auto}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<header>
+  <h1>Panel de música</h1>
+  <div class="fila" id="barra" hidden>
+    <small id="quien" style="color:var(--suave)"></small>
+    <button id="b-recargar" class="mini">Releer archivos</button>
+    <button id="b-salir" class="mini">Salir</button>
+  </div>
+</header>
+<div id="msg" class="msg" hidden></div>
+
+<div id="acceso" class="panel" hidden>
+  <h2>Ingresar</h2>
+  <p style="color:var(--suave);margin-bottom:12px">Solo la cuenta de administrador puede publicar.</p>
+  <button id="b-entrar" class="pri">Entrar con Google</button>
+</div>
+
+<div id="app" hidden></div>
+
+<script src="firebase-config.js"></script>
+<script type="module">
+import {initializeApp} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import {getAuth,GoogleAuthProvider,signInWithPopup,signOut,onAuthStateChanged} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import {getFirestore,collection,getDocs,doc,setDoc,deleteDoc} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+/* ====== AJUSTES ====== */
+const ADMIN_EMAIL = "pablofernandez2390@gmail.com";
+const OWNER = "pablofernandez2390-ux", REPO = "Bidukka";
+const PROYECTOS = {bidukka:"Bidukka", troskare:"Troskare"};
+const TIPOS = ["Single","EP","Álbum","Mixdown","Muestra"];
+
+const $ = s => document.querySelector(s);
+const esc = s => String(s??"").replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function aviso(t,tipo){ const m=$("#msg"); m.textContent=t; m.className="msg "+(tipo||""); m.hidden=!t; if(t&&tipo==="ok") setTimeout(()=>{ if(m.textContent===t) m.hidden=true; },3500); }
+
+const cfg = window.FIREBASE_CONFIG || {};
+if(!cfg.apiKey || !cfg.projectId){
+  aviso("Falta completar firebase-config.js con los datos de tu proyecto de Firebase.","mal");
+  throw new Error("sin config");
+}
+const app = initializeApp(cfg), auth = getAuth(app), db = getFirestore(app);
+
+/* ====== archivos del repo (API pública de GitHub) ====== */
+const EXT_AUDIO = /\.(m4a|mp3|aac|ogg|wav|flac)$/i, EXT_IMG = /\.(jpe?g|png|webp)$/i;
+async function ls(path, prof=0){
+  const r = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/${path}`);
+  if(r.status===404) return [];
+  if(r.status===403) throw new Error("GitHub limitó las consultas por un rato. Probá de nuevo en unos minutos.");
+  if(!r.ok) throw new Error("GitHub respondió "+r.status);
+  let out = [];
+  for(const x of await r.json()){
+    if(x.type==="file") out.push(x.path);
+    else if(x.type==="dir" && prof<2) out = out.concat(await ls(x.path, prof+1));
+  }
+  return out;
+}
+let repo = {audio:{bidukka:[],troskare:[]}, portadas:[]};
+async function leerRepo(){
+  const [b,t,p] = await Promise.all([ls("audio/bidukka"), ls("audio/troskare"), ls("img/portadas")]);
+  repo = {audio:{bidukka:b.filter(f=>EXT_AUDIO.test(f)).sort(), troskare:t.filter(f=>EXT_AUDIO.test(f)).sort()}, portadas:p.filter(f=>EXT_IMG.test(f)).sort()};
+}
+
+/* ====== datos ====== */
+let docs = [], edit = null, esNuevo = false;
+async function leerDocs(){
+  const s = await getDocs(collection(db,"lanzamientos"));
+  docs = s.docs.map(d=>({id:d.id, ...d.data()})).sort((a,b)=>(a.orden||0)-(b.orden||0));
+}
+const slug = s => s.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
+const nombreArchivo = f => f.split("/").pop();
+const tituloDe = f => { const t = nombreArchivo(f).replace(/\.[^.]+$/,"").replace(/[-_]+/g," ").trim(); return t.charAt(0).toUpperCase()+t.slice(1); };
+
+/* ====== pantallas ====== */
+function pintar(){ edit ? pintarEditor() : pintarLista(); }
+
+function pintarLista(){
+  $("#app").innerHTML = `
+    <div class="fila" style="margin-bottom:12px"><button class="pri" id="b-nuevo">+ Nuevo lanzamiento</button></div>
+    <div class="panel">
+      <h2>Lanzamientos</h2>
+      ${docs.length ? docs.map(d=>`
+        <div class="item" data-id="${esc(d.id)}">
+          ${d.portada?`<img src="${esc(d.portada.replace(/^\//,""))}" onerror="this.outerHTML='<div class=sin></div>'" alt="">`:`<div class="sin"></div>`}
+          <div class="t"><b>${esc(d.titulo)}</b><small>${esc(PROYECTOS[d.proyecto]||d.proyecto)} · ${esc(d.tipo)} · ${esc(d.anio)} · ${(d.pistas||[]).length} tema(s)</small>
+            <span class="tag ${d.publicado?'on':''}">${d.publicado?'Publicado':'Oculto'}</span></div>
+          <button class="mini" data-a="pub">${d.publicado?'Ocultar':'Publicar'}</button>
+          <button class="mini" data-a="edit">Editar</button>
+        </div>`).join("") : `<p style="color:var(--suave)">Todavía no hay lanzamientos. Creá el primero.</p>`}
+    </div>
+    <div class="panel"><h2>Archivos en el repositorio</h2>
+      <p style="color:var(--suave);font-size:13px">Bidukka: ${repo.audio.bidukka.length} audio(s) · Troskare: ${repo.audio.troskare.length} audio(s) · Portadas: ${repo.portadas.length}</p>
+    </div>`;
+  $("#b-nuevo").onclick = () => { esNuevo=true; edit={proyecto:"bidukka",tipo:"Single",titulo:"",anio:new Date().getFullYear(),orden:docs.length?Math.max(...docs.map(d=>d.orden||0))+1:1,publicado:false,portada:"",pistas:[]}; pintar(); };
+  $("#app").querySelectorAll(".item").forEach(it=>{
+    const id = it.dataset.id;
+    it.querySelector('[data-a=edit]').onclick = () => { esNuevo=false; edit = JSON.parse(JSON.stringify(docs.find(d=>d.id===id))); pintar(); };
+    it.querySelector('[data-a=pub]').onclick = async () => {
+      const d = docs.find(x=>x.id===id);
+      try{ const {id:_,...datos}=d; datos.publicado=!d.publicado; await setDoc(doc(db,"lanzamientos",id),datos); await leerDocs(); pintar(); aviso(datos.publicado?"Publicado.":"Ocultado.","ok"); }
+      catch(e){ aviso("No se pudo guardar: "+e.message,"mal"); }
+    };
+  });
+}
+
+function opciones(lista, actual, vacio){
+  const hay = !actual || lista.includes(actual);
+  return `<option value="">${esc(vacio)}</option>` + (hay?"":`<option value="${esc(actual)}" selected>${esc(actual)} (no está en el repo)</option>`) +
+    lista.map(f=>`<option value="${esc(f)}" ${f===actual?'selected':''}>${esc(f.replace(/^(audio|img)\//,''))}</option>`).join("");
+}
+
+function pintarEditor(){
+  const e = edit, audios = repo.audio[e.proyecto]||[];
+  const usados = new Set(e.pistas.map(p=>p.archivo));
+  const libres = audios.filter(f=>!usados.has(f) && !docs.some(d=>d.id!==e.id && (d.pistas||[]).some(p=>p.archivo===f)));
+  $("#app").innerHTML = `
+    <div class="panel">
+      <h2>${esNuevo?'Nuevo lanzamiento':'Editar lanzamiento'}</h2>
+      <div class="g2">
+        <div><label>Banda</label><select id="f-proy">${Object.entries(PROYECTOS).map(([k,n])=>`<option value="${k}" ${k===e.proyecto?'selected':''}>${n}</option>`).join("")}</select></div>
+        <div><label>Tipo</label><select id="f-tipo">${TIPOS.map(t=>`<option ${t===e.tipo?'selected':''}>${t}</option>`).join("")}</select></div>
+      </div>
+      <label>Título</label><input id="f-tit" value="${esc(e.titulo)}">
+      <div class="g2"><div><label>Año</label><input id="f-anio" type="number" value="${esc(e.anio)}"></div>
+        <div><label>Orden en la página (menor = primero)</label><input id="f-orden" type="number" value="${esc(e.orden)}"></div></div>
+      <label>Portada (de img/portadas/)</label>
+      <select id="f-port">${opciones(repo.portadas, e.portada, "— sin portada (se verá el logo) —")}</select>
+      ${e.portada?`<img class="prev" id="prev" src="${esc(e.portada)}" alt="" onerror="this.style.opacity=.2">`:""}
+      <label class="chk"><input type="checkbox" id="f-pub" ${e.publicado?'checked':''}> Publicado (visible en la página)</label>
+    </div>
+    <div class="panel">
+      <h2>Temas</h2>
+      ${e.pistas.map((p,i)=>`
+        <div class="pista" data-i="${i}">
+          <div class="cab"><span>${i+1}</span><input data-k="titulo" value="${esc(p.titulo)}" placeholder="Título del tema">
+            <button class="mini" data-a="up">↑</button><button class="mini" data-a="down">↓</button><button class="mini mal" data-a="del">✕</button></div>
+          <label>Audio que se escucha</label>
+          <select data-k="archivo">${opciones(audios,p.archivo,"— elegí un archivo —")}</select>
+          ${p.archivo && !audios.includes(p.archivo)?`<div class="aviso">Este archivo no está en el repositorio.</div>`:""}
+          <label>Descarga m4a (opcional)</label>
+          <select data-k="m4a">${opciones(audios.filter(f=>/\.m4a$/i.test(f)),p.m4a||"","— sin descarga —")}</select>
+        </div>`).join("") || `<p style="color:var(--suave)">Sin temas todavía.</p>`}
+      <div class="fila" style="margin-top:12px">
+        <button id="b-add">+ Agregar tema</button>
+        <button id="b-libres" ${libres.length?'':'disabled'}>Agregar los ${libres.length} archivo(s) sin usar de ${esc(PROYECTOS[e.proyecto])}</button>
+      </div>
+    </div>
+    <div class="fila">
+      <button class="pri" id="b-guardar">Guardar</button>
+      <button id="b-cancel">Cancelar</button>
+      ${esNuevo?"":`<button class="mal" id="b-borrar" style="margin-left:auto">Borrar lanzamiento</button>`}
+    </div>`;
+  const q = s => $("#app").querySelector(s);
+  q("#f-proy").onchange = ev => { e.proyecto=ev.target.value; pintar(); };
+  q("#f-tipo").onchange = ev => e.tipo=ev.target.value;
+  q("#f-tit").oninput = ev => e.titulo=ev.target.value;
+  q("#f-anio").oninput = ev => e.anio=ev.target.value;
+  q("#f-orden").oninput = ev => e.orden=ev.target.value;
+  q("#f-pub").onchange = ev => e.publicado=ev.target.checked;
+  q("#f-port").onchange = ev => { e.portada=ev.target.value; pintar(); };
+  $("#app").querySelectorAll(".pista").forEach(el=>{
+    const i = +el.dataset.i, p = e.pistas[i];
+    el.querySelectorAll("[data-k]").forEach(c=>{
+      const k = c.dataset.k;
+      c.addEventListener(k==="titulo"?"input":"change", ev=>{
+        p[k]=ev.target.value;
+        if(k==="archivo"){ if(/\.m4a$/i.test(p.archivo) && !p.m4a) p.m4a=p.archivo; if(!p.titulo) p.titulo=tituloDe(p.archivo); pintar(); }
+      });
+    });
+    el.querySelector('[data-a=del]').onclick = () => { e.pistas.splice(i,1); pintar(); };
+    el.querySelector('[data-a=up]').onclick = () => { if(i>0){ [e.pistas[i-1],e.pistas[i]]=[e.pistas[i],e.pistas[i-1]]; pintar(); } };
+    el.querySelector('[data-a=down]').onclick = () => { if(i<e.pistas.length-1){ [e.pistas[i+1],e.pistas[i]]=[e.pistas[i],e.pistas[i+1]]; pintar(); } };
+  });
+  q("#b-add").onclick = () => { e.pistas.push({titulo:"",archivo:"",m4a:""}); pintar(); };
+  q("#b-libres").onclick = () => { libres.forEach(f=>e.pistas.push({titulo:tituloDe(f),archivo:f,m4a:/\.m4a$/i.test(f)?f:""})); pintar(); };
+  q("#b-cancel").onclick = () => { edit=null; pintar(); };
+  const bb = q("#b-borrar");
+  if(bb) bb.onclick = async () => {
+    if(!confirm('¿Borrar "'+e.titulo+'" del catálogo? (Los archivos del repositorio no se tocan.)')) return;
+    try{ await deleteDoc(doc(db,"lanzamientos",e.id)); await leerDocs(); edit=null; pintar(); aviso("Borrado.","ok"); }
+    catch(err){ aviso("No se pudo borrar: "+err.message,"mal"); }
+  };
+  q("#b-guardar").onclick = async () => {
+    const titulo = String(e.titulo).trim();
+    if(!titulo) return aviso("Falta el título.","mal");
+    const pistas = e.pistas.filter(p=>p.archivo).map(p=>{ const o={titulo:(p.titulo||tituloDe(p.archivo)).trim(), archivo:p.archivo}; if(p.m4a) o.m4a=p.m4a; return o; });
+    if(!pistas.length) return aviso("Agregá al menos un tema con su archivo de audio.","mal");
+    const id = e.id || slug(e.proyecto+"-"+titulo) || ("lanz-"+Date.now());
+    if(esNuevo && docs.some(d=>d.id===id)) return aviso("Ya existe un lanzamiento con ese título para esa banda.","mal");
+    const datos = {proyecto:e.proyecto, tipo:e.tipo, titulo, anio:Number(e.anio)||new Date().getFullYear(), orden:Number(e.orden)||0, publicado:!!e.publicado, portada:e.portada||"", pistas};
+    try{ await setDoc(doc(db,"lanzamientos",id),datos); await leerDocs(); edit=null; pintar(); aviso("Guardado."+(datos.publicado?" Ya se ve en la página.":" Quedó oculto."),"ok"); }
+    catch(err){ aviso("No se pudo guardar: "+err.message,"mal"); }
+  };
+}
+
+/* ====== sesión ====== */
+async function cargarTodo(){
+  aviso("Leyendo archivos del repositorio…");
+  try{ await Promise.all([leerRepo(), leerDocs()]); aviso(""); }
+  catch(e){ aviso(e.message,"mal"); }
+  edit=null; pintar();
+}
+$("#b-entrar").onclick = async () => { try{ await signInWithPopup(auth,new GoogleAuthProvider()); }catch(e){ aviso("No se pudo ingresar: "+e.message,"mal"); } };
+$("#b-salir").onclick = () => signOut(auth);
+$("#b-recargar").onclick = async () => { try{ await leerRepo(); aviso("Archivos releídos.","ok"); }catch(e){ aviso(e.message,"mal"); } pintar(); };
+onAuthStateChanged(auth, u => {
+  const ok = !!u && u.email===ADMIN_EMAIL;
+  $("#acceso").hidden = ok; $("#app").hidden = !ok; $("#barra").hidden = !ok;
+  if(u && !ok){ aviso("Esa cuenta ("+u.email+") no es la de administrador.","mal"); signOut(auth); return; }
+  if(ok){ $("#quien").textContent = u.email; cargarTodo(); }
+  else aviso("");
+});
+</script>
+</body>
+</html>
