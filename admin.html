@@ -121,24 +121,34 @@ const tituloDe = f => { const t = nombreArchivo(f).replace(/\.[^.]+$/,"").replac
 /* ====== pantallas ====== */
 function pintar(){ edit ? pintarEditor() : pintarLista(); }
 
+function itemHTML(d){
+  return `<div class="item" data-id="${esc(d.id)}">
+    ${d.portada?`<img src="${esc(d.portada.replace(/^\//,""))}" onerror="this.outerHTML='<div class=sin></div>'" alt="">`:`<div class="sin"></div>`}
+    <div class="t"><b>${esc(d.titulo)}</b><small>${d.proyecto==="mixto"?"Mixdown":esc(PROYECTOS[d.proyecto]||d.proyecto)+" · "+esc(d.tipo)} · ${esc(d.anio)} · ${(d.pistas||[]).length} tema(s)</small>
+      <span class="tag ${d.publicado?'on':''}">${d.publicado?'Publicado':'Oculto'}</span></div>
+    <button class="mini" data-a="pub">${d.publicado?'Ocultar':'Publicar'}</button>
+    <button class="mini" data-a="edit">Editar</button>
+  </div>`;
+}
+const siguienteOrden = () => docs.length ? Math.max(...docs.map(d=>Number(d.orden)||0))+1 : 1;
 function pintarLista(){
+  const bandas = docs.filter(d=>d.proyecto!=="mixto"), mixes = docs.filter(d=>d.proyecto==="mixto");
   $("#app").innerHTML = `
-    <div class="fila" style="margin-bottom:12px"><button class="pri" id="b-nuevo">+ Nuevo lanzamiento</button></div>
+    <div class="fila" style="margin-bottom:12px"><button class="pri" id="b-nuevo">+ Nuevo lanzamiento</button><button class="pri" id="b-nuevomix">+ Nuevo mixdown</button></div>
     <div class="panel">
-      <h2>Lanzamientos</h2>
-      ${docs.length ? docs.map(d=>`
-        <div class="item" data-id="${esc(d.id)}">
-          ${d.portada?`<img src="${esc(d.portada.replace(/^\//,""))}" onerror="this.outerHTML='<div class=sin></div>'" alt="">`:`<div class="sin"></div>`}
-          <div class="t"><b>${esc(d.titulo)}</b><small>${esc(PROYECTOS[d.proyecto]||d.proyecto)} · ${esc(d.tipo)} · ${esc(d.anio)} · ${(d.pistas||[]).length} tema(s)</small>
-            <span class="tag ${d.publicado?'on':''}">${d.publicado?'Publicado':'Oculto'}</span></div>
-          <button class="mini" data-a="pub">${d.publicado?'Ocultar':'Publicar'}</button>
-          <button class="mini" data-a="edit">Editar</button>
-        </div>`).join("") : `<p style="color:var(--suave)">Todavía no hay lanzamientos. Creá el primero.</p>`}
+      <h2>Lanzamientos de banda</h2>
+      ${bandas.length ? bandas.map(itemHTML).join("") : `<p style="color:var(--suave)">Todavía no hay lanzamientos. Creá el primero.</p>`}
+    </div>
+    <div class="panel">
+      <h2>Mixdowns</h2>
+      <p style="color:var(--suave);font-size:13px;margin-bottom:6px">Selecciones con temas de las dos bandas, sin banda propia.</p>
+      ${mixes.length ? mixes.map(itemHTML).join("") : `<p style="color:var(--suave)">Todavía no hay mixdowns.</p>`}
     </div>
     <div class="panel"><h2>Archivos en el repositorio</h2>
       <p style="color:var(--suave);font-size:13px">Bidukka: ${repo.audio.bidukka.length} audio(s) · Troskare: ${repo.audio.troskare.length} audio(s) · Portadas: ${repo.portadas.length}</p>
     </div>`;
-  $("#b-nuevo").onclick = () => { esNuevo=true; edit={proyecto:"bidukka",tipo:"Single",titulo:"",anio:new Date().getFullYear(),orden:docs.length?Math.max(...docs.map(d=>d.orden||0))+1:1,publicado:false,portada:"",pistas:[]}; pintar(); };
+  $("#b-nuevo").onclick = () => { esNuevo=true; edit={proyecto:"bidukka",tipo:"Single",titulo:"",anio:new Date().getFullYear(),orden:siguienteOrden(),publicado:false,portada:"",pistas:[]}; pintar(); };
+  $("#b-nuevomix").onclick = () => { esNuevo=true; edit={proyecto:"mixto",tipo:"Mixdown",titulo:"",anio:new Date().getFullYear(),orden:siguienteOrden(),publicado:false,portada:"",pistas:[]}; pintar(); };
   $("#app").querySelectorAll(".item").forEach(it=>{
     const id = it.dataset.id;
     it.querySelector('[data-a=edit]').onclick = () => { esNuevo=false; edit = JSON.parse(JSON.stringify(docs.find(d=>d.id===id))); pintar(); };
@@ -150,6 +160,88 @@ function pintarLista(){
   });
 }
 
+/* ---- Editor de mixdown: selección de temas de las dos bandas ---- */
+function catalogoTemas(){
+  const out = [], vistos = new Set();
+  docs.filter(d=>d.proyecto!=="mixto").forEach(d => (d.pistas||[]).forEach(p => { if(vistos.has(p.archivo)) return; vistos.add(p.archivo); out.push({archivo:p.archivo,titulo:p.titulo,m4a:p.m4a||"",g:0}); }));
+  [...repo.audio.bidukka,...repo.audio.troskare].forEach(f => { if(!vistos.has(f)){ vistos.add(f); out.push({archivo:f,titulo:tituloDe(f),m4a:/\.m4a$/i.test(f)?f:"",g:1}); } });
+  return out;
+}
+function pintarEditorMix(){
+  const e = edit, cat = catalogoTemas(), todos = [...repo.audio.bidukka,...repo.audio.troskare];
+  const nb = f => ({bidukka:"Bidukka",troskare:"Troskare"}[bandaDeArchivo(f)]||"");
+  const op = g => cat.filter(t=>t.g===g).map(t=>`<option value="${esc(t.archivo)}">${esc(t.titulo)} — ${esc(nb(t.archivo))}</option>`).join("");
+  $("#app").innerHTML = `
+    <div class="panel">
+      <h2>${esNuevo?'Nuevo mixdown':'Editar mixdown'}</h2>
+      <p style="color:var(--suave);font-size:13px">No pertenece a ninguna banda: es una selección de temas de Bidukka y Troskare.</p>
+      <label>Título</label><input id="f-tit" value="${esc(e.titulo)}">
+      <div class="g2"><div><label>Año</label><input id="f-anio" type="number" value="${esc(e.anio)}"></div>
+        <div><label>Orden en la página (menor = primero)</label><input id="f-orden" type="number" value="${esc(e.orden)}"></div></div>
+      <label>Portada (de img/portadas/)</label>
+      <select id="f-port">${opciones(repo.portadas, e.portada, "— sin portada —")}</select>
+      ${e.portada?`<img class="prev" src="${esc(e.portada)}" alt="" onerror="this.style.opacity=.2">`:""}
+      <label class="chk"><input type="checkbox" id="f-pub" ${e.publicado?'checked':''}> Publicado (visible en la página)</label>
+    </div>
+    <div class="panel">
+      <h2>Temas del mixdown</h2>
+      ${e.pistas.map((p,i)=>`
+        <div class="pista" data-i="${i}">
+          <div class="cab"><span>${i+1}</span><input data-k="titulo" value="${esc(p.titulo)}" placeholder="Título del tema">
+            <button class="mini" data-a="up">↑</button><button class="mini" data-a="down">↓</button><button class="mini mal" data-a="del">✕</button></div>
+          <small style="color:var(--suave)">${esc(nb(p.archivo))} · ${esc(p.archivo.replace(/^audio\//,""))}</small>
+          ${!todos.includes(p.archivo)?`<div class="aviso">Este archivo no está en el repositorio.</div>`:""}
+          <label>Descarga m4a (opcional)</label>
+          <select data-k="m4a">${opciones(todos.filter(f=>/\.m4a$/i.test(f)),p.m4a||"","— sin descarga —")}</select>
+        </div>`).join("") || `<p style="color:var(--suave)">Todavía no elegiste temas.</p>`}
+      <label>Agregar un tema</label>
+      <div class="fila"><select id="m-add" style="flex:1"><option value="">— elegí un tema —</option>
+        ${cat.some(t=>t.g===0)?`<optgroup label="De tus lanzamientos">${op(0)}</optgroup>`:""}
+        ${cat.some(t=>t.g===1)?`<optgroup label="Archivos sin lanzamiento">${op(1)}</optgroup>`:""}</select>
+        <button id="m-btn">+ Agregar</button></div>
+    </div>
+    <div class="fila">
+      <button class="pri" id="b-guardar">Guardar</button><button id="b-cancel">Cancelar</button>
+      ${esNuevo?"":`<button class="mal" id="b-borrar" style="margin-left:auto">Borrar mixdown</button>`}
+    </div>`;
+  const q = s => $("#app").querySelector(s);
+  q("#f-tit").oninput = ev => e.titulo=ev.target.value;
+  q("#f-anio").oninput = ev => e.anio=ev.target.value;
+  q("#f-orden").oninput = ev => e.orden=ev.target.value;
+  q("#f-pub").onchange = ev => e.publicado=ev.target.checked;
+  q("#f-port").onchange = ev => { e.portada=ev.target.value; pintar(); };
+  $("#app").querySelectorAll(".pista").forEach(el=>{
+    const i = +el.dataset.i, p = e.pistas[i];
+    el.querySelector('[data-k=titulo]').oninput = ev => p.titulo=ev.target.value;
+    el.querySelector('[data-k=m4a]').onchange = ev => p.m4a=ev.target.value;
+    el.querySelector('[data-a=del]').onclick = () => { e.pistas.splice(i,1); pintar(); };
+    el.querySelector('[data-a=up]').onclick = () => { if(i>0){ [e.pistas[i-1],e.pistas[i]]=[e.pistas[i],e.pistas[i-1]]; pintar(); } };
+    el.querySelector('[data-a=down]').onclick = () => { if(i<e.pistas.length-1){ [e.pistas[i+1],e.pistas[i]]=[e.pistas[i],e.pistas[i+1]]; pintar(); } };
+  });
+  q("#m-btn").onclick = () => {
+    const f = q("#m-add").value; if(!f) return aviso("Elegí un tema de la lista.","mal");
+    const t = cat.find(x=>x.archivo===f); e.pistas.push({titulo:t.titulo, archivo:t.archivo, m4a:t.m4a}); pintar();
+  };
+  q("#b-cancel").onclick = () => { edit=null; pintar(); };
+  const bb = q("#b-borrar");
+  if(bb) bb.onclick = async () => {
+    if(!confirm('¿Borrar el mixdown "'+e.titulo+'"? (Los archivos y lanzamientos no se tocan.)')) return;
+    try{ await remove(ref(db,"lanzamientos/"+e.id)); await leerDocs(); edit=null; pintar(); aviso("Borrado.","ok"); }
+    catch(err){ aviso("No se pudo borrar: "+err.message,"mal"); }
+  };
+  q("#b-guardar").onclick = async () => {
+    const titulo = String(e.titulo).trim();
+    if(!titulo) return aviso("Falta el título.","mal");
+    const pistas = e.pistas.filter(p=>p.archivo).map(p=>{ const o={titulo:(p.titulo||tituloDe(p.archivo)).trim(), archivo:p.archivo}; if(p.m4a) o.m4a=p.m4a; const b=bandaDeArchivo(p.archivo); if(b) o.proyecto=b; return o; });
+    if(!pistas.length) return aviso("Agregá al menos un tema.","mal");
+    const id = e.id || slug("mix-"+titulo) || ("mix-"+Date.now());
+    if(esNuevo && docs.some(d=>d.id===id)) return aviso("Ya existe un mixdown con ese título.","mal");
+    const datos = {proyecto:"mixto", tipo:"Mixdown", titulo, anio:Number(e.anio)||new Date().getFullYear(), orden:Number(e.orden)||0, publicado:!!e.publicado, portada:e.portada||"", pistas};
+    try{ await set(ref(db,"lanzamientos/"+id),datos); await leerDocs(); edit=null; pintar(); aviso("Guardado."+(datos.publicado?" Ya se ve en la página.":" Quedó oculto."),"ok"); }
+    catch(err){ aviso("No se pudo guardar: "+err.message,"mal"); }
+  };
+}
+
 function opciones(lista, actual, vacio){
   const hay = !actual || lista.includes(actual);
   return `<option value="">${esc(vacio)}</option>` + (hay?"":`<option value="${esc(actual)}" selected>${esc(actual)} (no está en el repo)</option>`) +
@@ -157,6 +249,7 @@ function opciones(lista, actual, vacio){
 }
 
 function pintarEditor(){
+  if(edit.proyecto==="mixto") return pintarEditorMix();
   const e = edit, mixto = e.proyecto==="mixto", audios = audiosDe(e.proyecto);
   const usados = new Set(e.pistas.map(p=>p.archivo));
   const libres = audios.filter(f=>!usados.has(f) && !docs.some(d=>d.id!==e.id && (d.pistas||[]).some(p=>p.archivo===f)));
@@ -164,7 +257,7 @@ function pintarEditor(){
     <div class="panel">
       <h2>${esNuevo?'Nuevo lanzamiento':'Editar lanzamiento'}</h2>
       <div class="g2">
-        <div><label>Banda</label><select id="f-proy">${Object.entries(PROYECTOS).map(([k,n])=>`<option value="${k}" ${k===e.proyecto?'selected':''}>${n}</option>`).join("")}</select></div>
+        <div><label>Banda</label><select id="f-proy">${Object.entries(PROYECTOS).filter(([k])=>k!=="mixto").map(([k,n])=>`<option value="${k}" ${k===e.proyecto?'selected':''}>${n}</option>`).join("")}</select></div>
         <div><label>Tipo</label><select id="f-tipo">${TIPOS.map(t=>`<option ${t===e.tipo?'selected':''}>${t}</option>`).join("")}</select></div>
       </div>
       <label>Título</label><input id="f-tit" value="${esc(e.titulo)}">

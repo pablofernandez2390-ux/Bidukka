@@ -104,6 +104,27 @@ nav a:hover{color:#fff}
 [data-p=troskare] .marca,.detalle[data-p=troskare] .marca{font-family:var(--f-tro);letter-spacing:.05em}
 .marca.mix{font-size:19px}
 .pistas .tb{font-size:11px;color:var(--suave);border:1px solid var(--linea);border-radius:3px;padding:0 5px;margin-left:8px;white-space:nowrap}
+/* MI LISTA / COLA / HISTORIAL */
+.sug{display:none;align-items:center;gap:12px;flex-wrap:wrap;background:var(--panel);border:1px solid var(--linea);border-radius:6px;padding:12px 14px;margin-bottom:16px}
+.sug.on{display:flex}.sug span{flex:1;min-width:200px}
+.sug button,.tabs button{background:none;border:1px solid var(--linea);color:var(--texto);border-radius:99px;padding:6px 14px;cursor:pointer;font:inherit;font-size:14px}
+.sug .ok,.tabs button.on{background:var(--texto);color:#000;border-color:var(--texto)}
+.milista{margin-top:26px;background:var(--panel);border:1px solid var(--linea);border-radius:6px;padding:16px}
+.milista h3{font-size:18px;margin-bottom:10px}
+.milista p.nota{font-size:12px;color:var(--suave);margin-top:10px}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.lrow{display:flex;gap:8px;align-items:center;padding:8px 2px;border-top:1px solid var(--linea)}
+.lrow .tt{flex:1;min-width:0;cursor:pointer}
+.lrow .tt b{display:block;font-size:15px;font-weight:500}
+.lrow .tt small{color:var(--suave);font-size:12px}
+.ib{background:none;border:0;color:var(--suave);cursor:pointer;padding:6px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center}
+.ib:hover{color:var(--texto)}
+.ib.on{color:#ff5a5f}
+.ib svg{width:18px;height:18px;fill:currentColor}
+.fav svg{fill:none;stroke:currentColor;stroke-width:2;stroke-linejoin:round}
+.fav.on svg{fill:currentColor}
+#toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);background:#222228;border:1px solid var(--linea);padding:8px 16px;border-radius:99px;font-size:13px;opacity:0;transition:opacity .25s;pointer-events:none;z-index:40}
+#toast.on{opacity:1}
 .card h3{font-size:16px;line-height:1.2;margin-top:2px}
 [data-p=troskare] h3{font-family:var(--f-tro)}
 .card .meta{font-size:12px;color:var(--suave);margin-top:3px}
@@ -200,9 +221,11 @@ input[type=range]{accent-color:var(--acc,#fff);height:4px}
   <div class="wrap">
     <h2>Música</h2>
     <p class="sub">Lanzamientos, singles y mixdowns. Tocá una tapa: el vinilo sale del sobre y empieza a sonar.</p>
+    <div class="sug" id="sug"></div>
     <div class="filtros" id="filtros"></div>
     <div class="grid" id="grid"></div>
     <div class="detalle" id="detalle"></div>
+    <div class="milista" id="milista"></div>
   </div>
 </section>
 
@@ -244,6 +267,7 @@ input[type=range]{accent-color:var(--acc,#fff);height:4px}
       <button id="b-prev" title="Anterior" aria-label="Anterior"></button>
       <button id="b-play" class="play" title="Reproducir / pausa" aria-label="Reproducir / pausa"></button>
       <button id="b-next" title="Siguiente" aria-label="Siguiente"></button>
+      <button id="b-fav" class="ib fav" title="Me gusta (agregar a Mi lista)" aria-label="Me gusta"></button>
       <a id="p-dl" class="dlbar" href="#" download hidden title="Descargar este tema en m4a" aria-label="Descargar en m4a"></a>
     </div>
     <div class="seek">
@@ -254,6 +278,7 @@ input[type=range]{accent-color:var(--acc,#fff);height:4px}
     <div class="vol"><span id="ic-vol"></span><input type="range" id="vol" min="0" max="100" value="90"></div>
   </div>
   <audio id="audio" preload="metadata"></audio>
+  <div id="toast"></div>
 </div>
 
 <script src="firebase-config.js"></script>
@@ -316,10 +341,13 @@ const IC = {
   prev:  svg("M6 6h2v12H6zM20 6v12L9.5 12z"),
   next:  svg("M16 6h2v12h-2zM4 6v12l10.5-6z"),
   dl:    svg("M5 20h14v-2H5zM12 16l5-6h-3V4h-4v6H7z"),
-  vol:   svg("M3 9v6h4l5 4V5L7 9zM16.5 12a4.5 4.5 0 0 0-2.5-4v8a4.5 4.5 0 0 0 2.5-4z")
+  vol:   svg("M3 9v6h4l5 4V5L7 9zM16.5 12a4.5 4.5 0 0 0-2.5-4v8a4.5 4.5 0 0 0 2.5-4z"),
+  mas:   svg("M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6z"),
+  x:     svg("M6.4 5 12 10.6 17.6 5 19 6.4 13.4 12 19 17.6 17.6 19 12 13.4 6.4 19 5 17.6 10.6 12 5 6.4z")
 };
+const HV = '<svg class="hv" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7-4.6-9.5-9C.9 8.5 3 5 6.5 5c2 0 3.4 1 5.5 3 2.1-2 3.5-3 5.5-3C21 5 23.1 8.5 21.5 12 19 16.4 12 21 12 21z"/></svg>';
 $("#b-prev").innerHTML = IC.prev; $("#b-play").innerHTML = IC.play; $("#b-next").innerHTML = IC.next;
-$("#p-dl").innerHTML = IC.dl; $("#ic-vol").innerHTML = IC.vol;
+$("#p-dl").innerHTML = IC.dl; $("#ic-vol").innerHTML = IC.vol; $("#b-fav").innerHTML = HV;
 const MIXTO = {nombre:"Bidukka + Troskare", logo:""};          /* mixdowns con temas de las dos bandas */
 const proy = k => PROYECTOS[k] || MIXTO;
 const bandaDe = (l,t) => PROYECTOS[t.proyecto] || proy(l.proyecto);  /* banda de cada tema */
@@ -342,7 +370,7 @@ document.querySelectorAll(".entrada").forEach(a => a.addEventListener("click", (
 /* Filtros */
 let filtro = "todos", seleccion = null;
 function pintarFiltros(){
-  const items = [["todos","Todos"], ...Object.entries(PROYECTOS).map(([k,p]) => [k,p.nombre])];
+  const items = [["todos","Todos"], ...Object.entries(PROYECTOS).map(([k,p]) => [k,p.nombre]), ["mixto","Mixdowns"]];
   $("#filtros").innerHTML = items.map(([k,n]) => `<button data-k="${k}" class="${k===filtro?'on':''}">${esc(n)}</button>`).join("");
   document.querySelectorAll("#filtros button").forEach(b => b.onclick = () => setFiltro(b.dataset.k));
 }
@@ -358,7 +386,7 @@ function portadaHTML(l){
 }
 
 function pintarGrid(){
-  const lista = CATALOGO.filter(l => filtro==="todos" || l.proyecto===filtro || l.proyecto==="mixto");
+  const lista = CATALOGO.filter(l => filtro==="todos" || l.proyecto===filtro);
   const g = $("#grid");
   if(!lista.length){ g.innerHTML = `<div class="vacio">Todavía no hay lanzamientos en esta categoría.</div>`; return; }
   g.innerHTML = lista.map(l => `
@@ -393,16 +421,23 @@ function abrir(id){
       <div class="meta">${esc(l.tipo)} · ${esc(l.anio)}</div>
       <button class="btn" id="b-todo">${IC.play} Reproducir todo</button>
       <ul class="pistas">${l.pistas.map((p,i) => `
-        <li data-i="${i}"><span class="n">${i+1}</span><span class="tt">${esc(p.titulo)}${l.proyecto==="mixto" ? `<span class="tb">${esc(bandaDe(l,p).nombre)}</span>` : ""}</span><span class="d" data-d="${i}"></span>${p.m4a ? `<a class="dl" href="${esc(p.m4a)}" download="${esc(limpiar(bandaDe(l,p).nombre+" - "+p.titulo))}.m4a" title="Descargar en m4a">${IC.dl} m4a</a>` : ""}</li>`).join("")}</ul>
+        <li data-i="${i}"><span class="n">${i+1}</span><span class="tt">${esc(p.titulo)}${l.proyecto==="mixto" ? `<span class="tb">${esc(bandaDe(l,p).nombre)}</span>` : ""}</span><span class="d" data-d="${i}"></span><button class="ib fav" data-k="${esc(p.archivo)}" title="Me gusta (agregar a Mi lista)" aria-label="Me gusta">${HV}</button><button class="ib q" title="Agregar a la cola" aria-label="Agregar a la cola">${IC.mas}</button>${p.m4a ? `<a class="dl" href="${esc(p.m4a)}" download="${esc(limpiar(bandaDe(l,p).nombre+" - "+p.titulo))}.m4a" title="Descargar en m4a">${IC.dl} m4a</a>` : ""}</li>`).join("")}</ul>
     </div>`;
   d.classList.add("on");
   d.querySelector("#b-todo").onclick = () => reproducir(l,0);
-  d.querySelectorAll(".pistas li").forEach(li => li.onclick = e => { if(e.target.closest(".dl")) return; reproducir(l, +li.dataset.i); });
+  d.querySelectorAll(".pistas li").forEach(li => li.onclick = e => {
+    const i = +li.dataset.i;
+    if(e.target.closest(".fav")) return toggleFav(info(l,l.pistas[i]));
+    if(e.target.closest(".q")) return agregarCola(info(l,l.pistas[i]));
+    if(e.target.closest(".dl")) return;
+    reproducir(l, i);
+  });
   /* se cambian clases sobre las tarjetas existentes (sin repintarlas) para que se vea la animación */
   document.querySelectorAll(".card").forEach(c => c.classList.toggle("sel", c.dataset.id===id));
   if(mismo){ audio.paused ? audio.play().catch(()=>{}) : audio.pause(); } else { reproducir(l,0); }
   marcarPista();
   marcarSonando();
+  refrescarFavs();
   d.scrollIntoView({behavior:"smooth", block:"nearest"});
 }
 
@@ -428,20 +463,88 @@ async function cargarCatalogo(){
 
 /* Reproductor */
 const audio = $("#audio");
-let cola = null, idx = 0;
+let cola = null, idx = 0, enCola = false, reanudar = null;
+
+/* ---- Lo del oyente: se guarda solo en SU navegador (no va a ningún servidor) ---- */
+const LS = {
+  get(k,d){ try{ const v = JSON.parse(localStorage.getItem(k)); return v==null ? d : v; }catch(e){ return d; } },
+  set(k,v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+};
+let favoritos = LS.get("favs", []), historial = LS.get("hist", []), colaExtra = [], tab = "favs";
+function info(l,p){
+  const b = bandaDe(l,p);
+  return {archivo:p.archivo, titulo:p.titulo, banda:b.nombre, proyecto: PROYECTOS[p.proyecto] ? p.proyecto : (PROYECTOS[l.proyecto] ? l.proyecto : ""), portada:p.portada||l.portada||"", m4a:p.m4a||""};
+}
+let tToast;
+function toast(t){ const e = $("#toast"); e.textContent = t; e.classList.add("on"); clearTimeout(tToast); tToast = setTimeout(() => e.classList.remove("on"), 2200); }
+function registrarHistorial(t){ historial = [{...t, ts:Date.now()}, ...historial.filter(x => x.archivo!==t.archivo)].slice(0,40); LS.set("hist", historial); }
+function refrescarFavs(){
+  const set = new Set(favoritos.map(f => f.archivo));
+  document.querySelectorAll(".fav[data-k]").forEach(b => b.classList.toggle("on", set.has(b.dataset.k)));
+  const cur = cola && cola.pistas[idx];
+  $("#b-fav").classList.toggle("on", !!cur && set.has(cur.archivo));
+}
+function toggleFav(t){
+  const i = favoritos.findIndex(f => f.archivo===t.archivo);
+  if(i>=0){ favoritos.splice(i,1); toast("Quitado de Mi lista"); } else { favoritos.push(t); toast("Agregado a Mi lista"); }
+  LS.set("favs", favoritos); refrescarFavs(); pintarPanel();
+}
+function reproducirLista(pistas, titulo, i){
+  cola = {id:"lista", proyecto:"mixto", titulo, portada:"", pistas:pistas.map(x => ({...x}))};
+  idx = i||0; enCola = false; reanudar = null;
+  cargar(); marcarSonando();
+}
+function agregarCola(t){
+  if(!cola){ reproducirLista([t], "En cola"); return; }
+  colaExtra.push(t); toast("Agregado a la cola"); pintarPanel();
+}
+const VACIO = {favs:"Todavía no marcaste temas. Tocá el corazón de los que te gusten y se guardan en este navegador.", cola:"La cola está vacía. Con el botón + agregás temas para que suenen a continuación.", hist:"Acá va a aparecer lo que vayas escuchando."};
+function pintarPanel(){
+  const el = $("#milista"), datos = {favs:favoritos, cola:colaExtra, hist:historial}[tab];
+  const nom = {favs:"Mi lista ("+favoritos.length+")", cola:"En cola ("+colaExtra.length+")", hist:"Historial ("+historial.length+")"};
+  el.innerHTML = `<h3>Para vos</h3>
+    <div class="tabs">${Object.keys(nom).map(k => `<button data-t="${k}" class="${k===tab?"on":""}">${nom[k]}</button>`).join("")}</div>
+    ${tab==="favs" && datos.length ? `<div class="tabs"><button id="l-play">Reproducir mi lista</button><button id="l-vaciar">Vaciar</button></div>` : ""}
+    ${datos.length ? datos.map((t,i) => `<div class="lrow" data-i="${i}"><div class="tt"><b>${esc(t.titulo)}</b><small>${esc(t.banda)}</small></div>
+        ${tab==="cola" ? `<button class="ib x" title="Quitar de la cola" aria-label="Quitar">${IC.x}</button>`
+          : `<button class="ib fav" data-k="${esc(t.archivo)}" title="Me gusta" aria-label="Me gusta">${HV}</button><button class="ib q" title="Agregar a la cola" aria-label="Agregar a la cola">${IC.mas}</button>`}</div>`).join("")
+      : `<p class="vacio">${VACIO[tab]}</p>`}
+    <p class="nota">Tu lista, la cola y el historial se guardan solo en este navegador.</p>`;
+  el.querySelectorAll(".tabs [data-t]").forEach(b => b.onclick = () => { tab = b.dataset.t; pintarPanel(); });
+  const lp = el.querySelector("#l-play"); if(lp) lp.onclick = () => reproducirLista(favoritos, "Mi lista", 0);
+  const lv = el.querySelector("#l-vaciar"); if(lv) lv.onclick = () => { favoritos = []; LS.set("favs", favoritos); refrescarFavs(); pintarPanel(); };
+  el.querySelectorAll(".lrow").forEach(r => {
+    const i = +r.dataset.i, t = datos[i];
+    r.querySelector(".tt").onclick = () => { if(tab==="favs") reproducirLista(favoritos, "Mi lista", i); else if(tab==="hist") reproducirLista(historial, "Historial", i); };
+    const f = r.querySelector(".fav"); if(f) f.onclick = () => toggleFav(t);
+    const q = r.querySelector(".q"); if(q) q.onclick = () => agregarCola(t);
+    const x = r.querySelector(".x"); if(x) x.onclick = () => { colaExtra.splice(i,1); pintarPanel(); };
+  });
+  refrescarFavs();
+}
+$("#b-fav").onclick = () => { if(cola) toggleFav(info(cola, cola.pistas[idx])); };
+/* Al entrar: si hay una lista guardada, la sugiere (el navegador no deja arrancar solo, hace falta un toque) */
+function pintarSug(){
+  const el = $("#sug");
+  if(!favoritos.length){ el.classList.remove("on"); return; }
+  el.innerHTML = `<span>Tenés <b>${favoritos.length}</b> tema${favoritos.length>1?"s":""} en <b>Mi lista</b>. ¿La reproducimos como la dejaste?</span><button class="ok" id="s-si">Reproducir</button><button id="s-no">Ahora no</button>`;
+  el.classList.add("on");
+  el.querySelector("#s-si").onclick = () => { el.classList.remove("on"); reproducirLista(favoritos, "Mi lista", 0); };
+  el.querySelector("#s-no").onclick = () => el.classList.remove("on");
+}
 
 function reproducir(l, i){
-  cola = l; idx = i;
+  cola = l; idx = i; enCola = false; reanudar = null;
   cargar();
 }
 function cargar(){
-  const p = cola.pistas[idx], pr = proy(cola.proyecto), bn = bandaDe(cola,p);
+  const p = cola.pistas[idx], pr = proy(cola.proyecto), bn = bandaDe(cola,p), por = p.portada || cola.portada;
   $("#player").classList.add("on");
   $("#player").style.setProperty("--acc", colorDe(cola.proyecto));
   $("#p-titulo").textContent = p.titulo;
   $("#p-sub").textContent = bn.nombre + " · " + cola.titulo;
-  $("#p-mini").innerHTML = cola.portada
-    ? `<img src="${esc(cola.portada)}" alt="" onerror="this.onerror=null;this.src='${esc(pr.logo||"icons/icon-192.png")}';this.style.objectFit='contain'">`
+  $("#p-mini").innerHTML = por
+    ? `<img src="${esc(por)}" alt="" onerror="this.onerror=null;this.src='${esc(pr.logo||"icons/icon-192.png")}';this.style.objectFit='contain'">`
     : `<img src="${esc(pr.logo||"icons/icon-192.png")}" alt="" style="object-fit:contain">`;
   $("#estado").textContent = "";
   const dl = $("#p-dl");
@@ -452,11 +555,14 @@ function cargar(){
     if("mediaSession" in navigator && window.MediaMetadata){
       navigator.mediaSession.metadata = new MediaMetadata({
         title:p.titulo, artist:bn.nombre, album:cola.titulo,
-        artwork: cola.portada ? [{src:new URL(cola.portada, location.href).href}] : []
+        artwork: por ? [{src:new URL(por, location.href).href}] : []
       });
     }
   }catch(e){}
   marcarPista();
+  registrarHistorial(info(cola,p));
+  refrescarFavs();
+  pintarPanel();
 }
 function marcarPista(){
   document.querySelectorAll(".pistas li").forEach(li => {
@@ -468,7 +574,17 @@ function marcarSonando(){
   const on = !!cola && !audio.paused;
   document.querySelectorAll(".card,.detalle").forEach(el => el.classList.toggle("playing", on && el.dataset.id===cola.id));
 }
-function siguiente(){ if(!cola) return; if(idx < cola.pistas.length-1){ idx++; cargar(); } else { audio.pause(); } }
+function siguiente(){
+  if(!cola) return;
+  if(colaExtra.length){                       /* primero lo que se agregó a la cola */
+    if(!enCola) reanudar = {l:cola, i:idx};
+    enCola = true;
+    cola = {id:"cola", proyecto:"mixto", titulo:"En cola", portada:"", pistas:[colaExtra.shift()]}; idx = 0;
+    cargar(); return;
+  }
+  if(enCola){ enCola = false; if(reanudar){ cola = reanudar.l; idx = reanudar.i; reanudar = null; } }
+  if(idx < cola.pistas.length-1){ idx++; cargar(); } else { audio.pause(); }
+}
 function anterior(){ if(!cola) return; if(audio.currentTime>3 || idx===0){ audio.currentTime=0; } else { idx--; cargar(); } }
 
 $("#b-play").onclick = () => { if(!audio.src) return; audio.paused ? audio.play() : audio.pause(); };
@@ -536,6 +652,8 @@ window.addEventListener("appinstalled", () => { $("#b-instalar").hidden = true; 
 try{ if("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{}); }catch(e){}
 
 pintarFiltros();
+pintarPanel();
+pintarSug();
 if(FB.databaseURL){
   $("#grid").innerHTML = `<div class="vacio">Cargando…</div>`;
   cargarCatalogo().then(pintarGrid);
