@@ -125,6 +125,25 @@ nav a:hover{color:#fff}
 .fav.on svg{fill:currentColor}
 #toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);background:#222228;border:1px solid var(--linea);padding:8px 16px;border-radius:99px;font-size:13px;opacity:0;transition:opacity .25s;pointer-events:none;z-index:40}
 #toast.on{opacity:1}
+/* EN VIVO: pantalla de videos de YouTube */
+.fila-vv{margin-top:18px}
+#vista-vivo{position:fixed;inset:0;z-index:20;background:var(--bg);overflow:auto;display:none;padding-bottom:120px}
+#vista-vivo.on{display:block}
+.vv-top{position:sticky;top:0;z-index:2;background:rgba(10,10,12,.94);border-bottom:1px solid var(--linea);padding:12px 16px;display:flex;gap:14px;align-items:center}
+.vv-top button{background:none;border:1px solid var(--linea);color:var(--texto);border-radius:99px;padding:7px 14px;cursor:pointer;font:inherit;font-size:14px}
+.vv-top h2{font-size:18px;margin:0}
+.vv-feed{max-width:720px;margin:0 auto;padding:18px 16px;display:grid;gap:22px}
+.vv{background:var(--panel);border:1px solid var(--linea);border-radius:8px;overflow:hidden}
+.vv .pantalla{position:relative;aspect-ratio:16/9;background:#000;cursor:pointer}
+.vv .pantalla img,.vv .pantalla iframe{position:absolute;inset:0;width:100%;height:100%;border:0;object-fit:cover}
+.vv .play{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:68px;height:48px;border-radius:12px;background:rgba(210,30,30,.93);display:flex;align-items:center;justify-content:center}
+.vv .play svg{width:28px;height:28px;fill:#fff}
+.vv .caido{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;background:#15151a;color:var(--suave);text-align:center;padding:16px;font-size:14px;cursor:default}
+.vv .caido svg{width:56px;height:56px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.vv .info{padding:12px 14px}
+.vv h3{font-size:17px;line-height:1.25}
+.vv .meta{font-size:12px;color:var(--suave);margin-top:5px}
+.vv a.yt{display:inline-block;margin-top:8px;font-size:13px;color:var(--suave)}
 .card h3{font-size:16px;line-height:1.2;margin-top:2px}
 [data-p=troskare] h3{font-family:var(--f-tro)}
 .card .meta{font-size:12px;color:var(--suave);margin-top:3px}
@@ -235,6 +254,7 @@ input[type=range]{accent-color:var(--acc,#fff);height:4px}
     <p class="sub">Toques y presentaciones.</p>
     <div class="vivo" id="vivo"></div>
     <p class="nota" id="nota-vivo"></p>
+    <div class="fila-vv"><button class="btn" id="b-vivos"></button></div>
   </div>
 </section>
 
@@ -255,6 +275,12 @@ input[type=range]{accent-color:var(--acc,#fff);height:4px}
 </section>
 
 <footer>© <span id="anio"></span> Juan Pablo Nuñez</footer>
+
+<!-- EN VIVO: videos -->
+<div id="vista-vivo" aria-hidden="true">
+  <div class="vv-top"><button id="vv-volver">← Volver</button><h2>En vivo</h2></div>
+  <div class="vv-feed" id="vv-feed"></div>
+</div>
 
 <!-- REPRODUCTOR -->
 <div id="player">
@@ -638,6 +664,90 @@ $("#personal").innerHTML = PERSONAL.map(p => `
 /* Contactos */
 $("#contactos").innerHTML = CONTACTOS.filter(c => c.url).map(c =>
   `<a href="${esc(c.url)}" target="_blank" rel="noopener">${esc(c.etiqueta)}</a>`).join("");
+
+/* ---- En vivo: pantalla de videos de YouTube (incrustados) ---- */
+$("#b-vivos").innerHTML = IC.play + " Ver videos de shows y directos";
+const SIN_VIDEO = '<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="6" y="14" width="52" height="36" rx="7"/><path d="M27 24v16l14-8z"/><path d="M10 54 54 10"/></svg>';
+let VIVOS = null;
+async function cargarVivos(){
+  if(!FB.databaseURL){ VIVOS = []; return; }
+  try{
+    const r = await fetch(FB.databaseURL.replace(/\/+$/,"")+"/vivos.json");
+    if(!r.ok) throw new Error("HTTP "+r.status);
+    const j = await r.json();
+    VIVOS = Object.entries(j||{}).map(([id,o]) => ({...o, id})).filter(v => v.publicado===true && /^[\w-]{11}$/.test(v.ytid||""))
+      .sort((a,b) => String(b.fecha||"").localeCompare(String(a.fecha||"")) || (b.creado||0)-(a.creado||0));
+  }catch(e){ VIVOS = null; throw e; }
+}
+const fechaCorta = f => { const m = String(f||"").match(/^(\d{4})-(\d{2})-(\d{2})/); return m ? m[3]+"/"+m[2]+"/"+m[1] : ""; };
+function vvHTML(v){
+  const b = PROYECTOS[v.banda] ? `<span class="badge" style="--acc:${colorDe(v.banda)}">${esc(PROYECTOS[v.banda].nombre)}</span>` : (v.banda==="ambas" ? `<span class="badge" style="--acc:#e8e8ee">Bidukka + Troskare</span>` : "");
+  return `<article class="vv" data-y="${esc(v.ytid)}">
+    <div class="pantalla" role="button" tabindex="0" aria-label="Reproducir ${esc(v.titulo)}"><img src="https://i.ytimg.com/vi/${esc(v.ytid)}/hqdefault.jpg" alt="" loading="lazy"><span class="play">${IC.play}</span></div>
+    <div class="info"><h3>${esc(v.titulo)}</h3><div class="meta">${b}${esc([fechaCorta(v.fecha), v.detalle].filter(Boolean).join(" · "))}</div>
+      <a class="yt" href="https://www.youtube.com/watch?v=${esc(v.ytid)}" target="_blank" rel="noopener">Abrir en YouTube</a></div>
+  </article>`;
+}
+function vvDetener(){ document.querySelectorAll("#vv-feed .vv iframe").forEach(f => { const p = f.parentElement; p.innerHTML = p._orig; ligarPantalla(p); }); }
+function ligarPantalla(p){
+  const id = p.closest(".vv").dataset.y;
+  p._orig = p.innerHTML;
+  const ir = () => {
+    vvDetener(); audio.pause();
+    p.innerHTML = `<iframe src="https://www.youtube-nocookie.com/embed/${id}?autoplay=1&rel=0&playsinline=1" title="Video en vivo" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe>`;
+    p.onclick = null; p.onkeydown = null;
+  };
+  p.onclick = ir; p.onkeydown = e => { if(e.key==="Enter"||e.key===" "){ e.preventDefault(); ir(); } };
+}
+/* ¿Sigue el video en YouTube? Si lo borraron, la publicación queda con el ícono de video no disponible. */
+let _control;
+const probar = u => new Promise(res => { const im = new Image(); im.onload = () => res(im.naturalWidth); im.onerror = () => res(0); im.src = u; });
+async function ytDisponible(id){
+  try{
+    const r = await fetch("https://www.youtube.com/oembed?format=json&url="+encodeURIComponent("https://www.youtube.com/watch?v="+id));
+    if(r.ok) return true;
+    if([400,401,403,404].includes(r.status)) return false;
+  }catch(e){}
+  _control = _control || probar("https://i.ytimg.com/vi/dQw4w9WgXcQ/mqdefault.jpg");
+  if(!(await _control)) return true;                    /* sin red o bloqueado: no se marca nada */
+  const w = await probar("https://i.ytimg.com/vi/"+id+"/mqdefault.jpg");
+  return w > 200;
+}
+function marcarCaido(card){
+  const p = card.querySelector(".pantalla");
+  p.onclick = null; p.onkeydown = null; p.removeAttribute("role"); p.removeAttribute("tabindex");
+  p.innerHTML = `<div class="caido">${SIN_VIDEO}<div>Este video ya no está disponible en YouTube</div></div>`;
+  const a = card.querySelector("a.yt"); if(a) a.remove();
+  card.classList.add("caido");
+}
+async function pintarVivos(){
+  const f = $("#vv-feed");
+  if(VIVOS===null){
+    f.innerHTML = `<div class="vacio">Cargando…</div>`;
+    try{ await cargarVivos(); }catch(e){ f.innerHTML = `<div class="vacio">No se pudieron cargar los videos. Probá de nuevo más tarde.</div>`; return; }
+  }
+  if(!VIVOS.length){ f.innerHTML = `<div class="vacio">Todavía no hay videos publicados.</div>`; return; }
+  f.innerHTML = VIVOS.map(vvHTML).join("");
+  f.querySelectorAll(".vv").forEach(c => {
+    ligarPantalla(c.querySelector(".pantalla"));
+    ytDisponible(c.dataset.y).then(ok => { if(!ok) marcarCaido(c); });
+  });
+}
+function abrirVivos(empujar){
+  $("#vista-vivo").classList.add("on"); $("#vista-vivo").setAttribute("aria-hidden","false");
+  document.body.style.overflow = "hidden";
+  if(empujar !== false) try{ history.pushState({vv:1}, "", "#vivos"); }catch(e){}
+  pintarVivos();
+}
+function cerrarVivos(){
+  vvDetener();
+  $("#vista-vivo").classList.remove("on"); $("#vista-vivo").setAttribute("aria-hidden","true");
+  document.body.style.overflow = "";
+}
+$("#b-vivos").onclick = () => abrirVivos();
+$("#vv-volver").onclick = () => { if(history.state && history.state.vv){ history.back(); } else { cerrarVivos(); } };
+window.addEventListener("popstate", () => { if(location.hash === "#vivos") abrirVivos(false); else cerrarVivos(); });
+if(location.hash === "#vivos") abrirVivos(false);
 
 /* Instalar como app */
 let promptInstalar = null;

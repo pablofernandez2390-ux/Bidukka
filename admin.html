@@ -119,7 +119,13 @@ const nombreArchivo = f => f.split("/").pop();
 const tituloDe = f => { const t = nombreArchivo(f).replace(/\.[^.]+$/,"").replace(/[-_]+/g," ").trim(); return t.charAt(0).toUpperCase()+t.slice(1); };
 
 /* ====== pantallas ====== */
-function pintar(){ edit ? pintarEditor() : pintarLista(); }
+let vista = "musica", vivos = [], vivosError = "";
+function pintar(){
+  if(edit) return edit.kind==="vivo" ? pintarEditorVivo() : pintarEditor();
+  vista==="vivo" ? pintarVivos() : pintarLista();
+  $("#app").querySelectorAll("[data-vista]").forEach(b => b.onclick = () => { vista = b.dataset.vista; pintar(); });
+}
+const tabsHTML = () => `<div class="fila" style="margin-bottom:14px"><button class="${vista==='musica'?'pri':''}" data-vista="musica">Música</button><button class="${vista==='vivo'?'pri':''}" data-vista="vivo">En vivo</button></div>`;
 
 function itemHTML(d){
   return `<div class="item" data-id="${esc(d.id)}">
@@ -133,7 +139,7 @@ function itemHTML(d){
 const siguienteOrden = () => docs.length ? Math.max(...docs.map(d=>Number(d.orden)||0))+1 : 1;
 function pintarLista(){
   const bandas = docs.filter(d=>d.proyecto!=="mixto"), mixes = docs.filter(d=>d.proyecto==="mixto");
-  $("#app").innerHTML = `
+  $("#app").innerHTML = tabsHTML() + `
     <div class="fila" style="margin-bottom:12px"><button class="pri" id="b-nuevo">+ Nuevo lanzamiento</button><button class="pri" id="b-nuevomix">+ Nuevo mixdown</button></div>
     <div class="panel">
       <h2>Lanzamientos de banda</h2>
@@ -333,10 +339,93 @@ function pintarEditor(){
   };
 }
 
+/* ====== EN VIVO: videos de YouTube ====== */
+const ytId = u => { u = String(u||"").trim(); const m = u.match(/(?:youtu\.be\/|youtube(?:-nocookie)?\.com\/(?:watch\?(?:.*&)?v=|live\/|shorts\/|embed\/|v\/))([\w-]{11})/); return m ? m[1] : (/^[\w-]{11}$/.test(u) ? u : ""); };
+const BANDAS_VIVO = {"":"— sin banda —", bidukka:"Bidukka", troskare:"Troskare", ambas:"Bidukka + Troskare"};
+async function leerVivos(){
+  try{
+    const s = await get(ref(db,"vivos")), v = s.val() || {};
+    vivos = Object.entries(v).map(([id,o])=>({id,...o})).sort((a,b)=>String(b.fecha||"").localeCompare(String(a.fecha||"")) || (b.creado||0)-(a.creado||0));
+    vivosError = "";
+  }catch(e){ vivos = []; vivosError = "No se pudo leer 'vivos' ("+e.message+"). Probablemente falte actualizar las reglas de Firebase."; }
+}
+function pintarVivos(){
+  $("#app").innerHTML = tabsHTML() + `
+    <div class="fila" style="margin-bottom:12px"><button class="pri" id="b-nuevovivo">+ Nuevo video en vivo</button></div>
+    ${vivosError?`<div class="msg mal">${esc(vivosError)}</div>`:""}
+    <div class="panel"><h2>Videos en vivo</h2>
+      ${vivos.length ? vivos.map(d=>`
+        <div class="item" data-id="${esc(d.id)}">
+          <img src="https://i.ytimg.com/vi/${esc(d.ytid)}/mqdefault.jpg" onerror="this.outerHTML='<div class=sin></div>'" alt="">
+          <div class="t"><b>${esc(d.titulo)}</b><small>${esc([d.fecha, BANDAS_VIVO[d.banda||""]!==BANDAS_VIVO[""]?BANDAS_VIVO[d.banda]:"", d.detalle].filter(Boolean).join(" · "))}</small>
+            <span class="tag ${d.publicado?'on':''}">${d.publicado?'Publicado':'Oculto'}</span></div>
+          <button class="mini" data-a="pub">${d.publicado?'Ocultar':'Publicar'}</button>
+          <button class="mini" data-a="edit">Editar</button>
+        </div>`).join("") : `<p style="color:var(--suave)">Todavía no hay videos. Pegá el enlace de un directo o de un show.</p>`}
+    </div>`;
+  $("#b-nuevovivo").onclick = () => { esNuevo=true; edit={kind:"vivo",url:"",ytid:"",titulo:"",fecha:new Date().toISOString().slice(0,10),detalle:"",banda:"",publicado:true}; pintar(); };
+  $("#app").querySelectorAll(".item").forEach(it=>{
+    const id = it.dataset.id;
+    it.querySelector('[data-a=edit]').onclick = () => { esNuevo=false; edit = {kind:"vivo", url:"https://youtu.be/"+vivos.find(d=>d.id===id).ytid, ...JSON.parse(JSON.stringify(vivos.find(d=>d.id===id)))}; pintar(); };
+    it.querySelector('[data-a=pub]').onclick = async () => {
+      const d = vivos.find(x=>x.id===id);
+      try{ const {id:_,...datos}=d; datos.publicado=!d.publicado; await set(ref(db,"vivos/"+id),datos); await leerVivos(); pintar(); aviso(datos.publicado?"Publicado.":"Ocultado.","ok"); }
+      catch(e){ aviso("No se pudo guardar: "+e.message,"mal"); }
+    };
+  });
+}
+function pintarEditorVivo(){
+  const e = edit;
+  $("#app").innerHTML = `
+    <div class="panel">
+      <h2>${esNuevo?'Nuevo video en vivo':'Editar video en vivo'}</h2>
+      <label>Enlace de YouTube (directo o video)</label>
+      <input id="v-url" value="${esc(e.url)}" placeholder="https://www.youtube.com/watch?v=… o https://youtu.be/…" inputmode="url">
+      <div id="v-prev" style="margin-top:8px"></div>
+      <label>Título</label><input id="v-tit" value="${esc(e.titulo)}">
+      <div class="g2"><div><label>Fecha del show</label><input id="v-fecha" type="date" value="${esc(e.fecha)}"></div>
+        <div><label>Banda</label><select id="v-banda">${Object.entries(BANDAS_VIVO).map(([k,n])=>`<option value="${k}" ${k===(e.banda||"")?'selected':''}>${n}</option>`).join("")}</select></div></div>
+      <label>Lugar o detalle (opcional)</label><input id="v-det" value="${esc(e.detalle)}" placeholder="Ej.: Eco Sombrío, Durazno">
+      <label class="chk"><input type="checkbox" id="v-pub" ${e.publicado?'checked':''}> Publicado (visible en la página)</label>
+      <p style="color:var(--suave);font-size:12px;margin-top:12px">Si más adelante borrás el video de YouTube, la publicación sigue en tu página con el ícono de video no disponible.</p>
+    </div>
+    <div class="fila"><button class="pri" id="b-guardar">Guardar</button><button id="b-cancel">Cancelar</button>
+      ${esNuevo?"":`<button class="mal" id="b-borrar" style="margin-left:auto">Borrar publicación</button>`}</div>`;
+  const q = s => $("#app").querySelector(s);
+  const prev = () => { const id = ytId(e.url); e.ytid = id;
+    q("#v-prev").innerHTML = id ? `<img class="prev" style="width:200px;height:auto;aspect-ratio:16/9" src="https://i.ytimg.com/vi/${id}/mqdefault.jpg" alt="" onerror="this.style.opacity=.2">` : (e.url?`<span class="aviso">No reconozco ese enlace de YouTube.</span>`:""); };
+  prev();
+  q("#v-url").oninput = async ev => { e.url = ev.target.value; prev();
+    if(e.ytid && !q("#v-tit").value.trim()){
+      try{ const r = await fetch("https://www.youtube.com/oembed?format=json&url="+encodeURIComponent("https://www.youtube.com/watch?v="+e.ytid)); if(r.ok){ const j = await r.json(); if(!q("#v-tit").value.trim() && j.title){ q("#v-tit").value = j.title; e.titulo = j.title; } } }catch(_){}
+    } };
+  q("#v-tit").oninput = ev => e.titulo = ev.target.value;
+  q("#v-fecha").oninput = ev => e.fecha = ev.target.value;
+  q("#v-banda").onchange = ev => e.banda = ev.target.value;
+  q("#v-det").oninput = ev => e.detalle = ev.target.value;
+  q("#v-pub").onchange = ev => e.publicado = ev.target.checked;
+  q("#b-cancel").onclick = () => { edit=null; pintar(); };
+  const bb = q("#b-borrar");
+  if(bb) bb.onclick = async () => {
+    if(!confirm("¿Borrar esta publicación de tu página? (No toca el video de YouTube.)")) return;
+    try{ await remove(ref(db,"vivos/"+e.id)); await leerVivos(); edit=null; pintar(); aviso("Borrado.","ok"); }
+    catch(err){ aviso("No se pudo borrar: "+err.message,"mal"); }
+  };
+  q("#b-guardar").onclick = async () => {
+    const id = ytId(e.url); if(!id) return aviso("Pegá un enlace válido de YouTube.","mal");
+    const titulo = String(e.titulo).trim(); if(!titulo) return aviso("Falta el título.","mal");
+    const docId = e.id || ("yt-"+id);
+    if(esNuevo && vivos.some(v=>v.id===docId)) return aviso("Ese video ya está publicado.","mal");
+    const datos = {ytid:id, titulo, fecha:e.fecha||"", detalle:String(e.detalle||"").trim(), banda:e.banda||"", publicado:!!e.publicado, creado:e.creado||Date.now()};
+    try{ await set(ref(db,"vivos/"+docId),datos); await leerVivos(); edit=null; pintar(); aviso("Guardado."+(datos.publicado?" Ya se ve en la página.":" Quedó oculto."),"ok"); }
+    catch(err){ aviso("No se pudo guardar: "+err.message,"mal"); }
+  };
+}
+
 /* ====== sesión ====== */
 async function cargarTodo(){
   aviso("Leyendo archivos del repositorio…");
-  try{ await Promise.all([leerRepo(), leerDocs()]); aviso(""); }
+  try{ await Promise.all([leerRepo(), leerDocs(), leerVivos()]); aviso(""); }
   catch(e){ aviso(e.message,"mal"); }
   edit=null; pintar();
 }
