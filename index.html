@@ -103,6 +103,7 @@ nav a:hover{color:#fff}
 .marca{font-family:var(--f-bid);font-size:26px;line-height:1.05;text-transform:uppercase;color:var(--acc);letter-spacing:.03em}
 [data-p=troskare] .marca,.detalle[data-p=troskare] .marca{font-family:var(--f-tro);letter-spacing:.05em}
 .marca.mix{font-size:19px}
+.exp{display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;margin-left:7px;border-radius:3px;background:var(--suave);color:#000;font:700 10px/1 Inter,sans-serif;vertical-align:middle;flex:none}
 .pistas .tb{font-size:11px;color:var(--suave);border:1px solid var(--linea);border-radius:3px;padding:0 5px;margin-left:8px;white-space:nowrap}
 /* MI LISTA / COLA / HISTORIAL */
 .sug{display:none;align-items:center;gap:12px;flex-wrap:wrap;background:var(--panel);border:1px solid var(--linea);border-radius:6px;padding:12px 14px;margin-bottom:16px}
@@ -418,7 +419,7 @@ function pintarGrid(){
   g.innerHTML = lista.map(l => `
     <div class="card ${seleccion===l.id?'sel':''}" data-p="${l.proyecto}" data-id="${l.id}" tabindex="0" role="button" aria-label="Escuchar ${esc(l.titulo)}">
       ${portadaHTML(l)}
-      <div class="info"><div class="marca ${l.proyecto==="mixto"?"mix":""}">${esc(proy(l.proyecto).nombre)}</div><h3>${esc(l.titulo)}</h3>
+      <div class="info"><div class="marca ${l.proyecto==="mixto"?"mix":""}">${esc(proy(l.proyecto).nombre)}</div><h3>${esc(l.titulo)}${expL(l)}</h3>
         <div class="meta"><span class="badge">${esc(l.tipo)}</span>${esc(l.anio)}</div>
       </div>
     </div>`).join("");
@@ -443,11 +444,11 @@ function abrir(id){
     ${portadaHTML(l)}
     <div>
       <div class="marca ${l.proyecto==="mixto"?"mix":""}">${esc(pr.nombre)}</div>
-      <h3>${esc(l.titulo)}</h3>
+      <h3>${esc(l.titulo)}${expL(l)}</h3>
       <div class="meta">${esc(l.tipo)} · ${esc(l.anio)}</div>
       <button class="btn" id="b-todo">${IC.play} Reproducir todo</button>
       <ul class="pistas">${l.pistas.map((p,i) => `
-        <li data-i="${i}"><span class="n">${i+1}</span><span class="tt">${esc(p.titulo)}${l.proyecto==="mixto" ? `<span class="tb">${esc(bandaDe(l,p).nombre)}</span>` : ""}</span><span class="d" data-d="${i}"></span><button class="ib fav" data-k="${esc(p.archivo)}" title="Me gusta (agregar a Mi lista)" aria-label="Me gusta">${HV}</button><button class="ib q" title="Agregar a la cola" aria-label="Agregar a la cola">${IC.mas}</button>${p.m4a ? `<a class="dl" href="${esc(p.m4a)}" download="${esc(limpiar(bandaDe(l,p).nombre+" - "+p.titulo))}.m4a" title="Descargar en m4a">${IC.dl} m4a</a>` : ""}</li>`).join("")}</ul>
+        <li data-i="${i}"><span class="n">${i+1}</span><span class="tt">${esc(p.titulo)}${expT(p)}${l.proyecto==="mixto" ? `<span class="tb">${esc(bandaDe(l,p).nombre)}</span>` : ""}</span><span class="d" data-d="${i}"></span><button class="ib fav" data-k="${esc(p.archivo)}" title="Me gusta (agregar a Mi lista)" aria-label="Me gusta">${HV}</button><button class="ib q" title="Agregar a la cola" aria-label="Agregar a la cola">${IC.mas}</button>${p.m4a ? `<a class="dl" href="${esc(p.m4a)}" download="${esc(limpiar(bandaDe(l,p).nombre+" - "+p.titulo))}.m4a" title="Descargar en m4a">${IC.dl} m4a</a>` : ""}</li>`).join("")}</ul>
     </div>`;
   d.classList.add("on");
   d.querySelector("#b-todo").onclick = () => reproducir(l,0);
@@ -499,7 +500,7 @@ const LS = {
 let favoritos = LS.get("favs", []), historial = LS.get("hist", []), colaExtra = [], tab = "favs";
 function info(l,p){
   const b = bandaDe(l,p);
-  return {archivo:p.archivo, titulo:p.titulo, banda:b.nombre, proyecto: PROYECTOS[p.proyecto] ? p.proyecto : (PROYECTOS[l.proyecto] ? l.proyecto : ""), portada:p.portada||l.portada||"", m4a:p.m4a||""};
+  return {archivo:p.archivo, titulo:p.titulo, banda:b.nombre, proyecto: PROYECTOS[p.proyecto] ? p.proyecto : (PROYECTOS[l.proyecto] ? l.proyecto : ""), portada:p.portada||l.portada||"", m4a:p.m4a||"", explicito:!!p.explicito};
 }
 let tToast;
 function toast(t){ const e = $("#toast"); e.textContent = t; e.classList.add("on"); clearTimeout(tToast); tToast = setTimeout(() => e.classList.remove("on"), 2200); }
@@ -531,7 +532,7 @@ function pintarPanel(){
   el.innerHTML = `<h3>Para vos</h3>
     <div class="tabs">${Object.keys(nom).map(k => `<button data-t="${k}" class="${k===tab?"on":""}">${nom[k]}</button>`).join("")}</div>
     ${tab==="favs" && datos.length ? `<div class="tabs"><button id="l-play">Reproducir mi lista</button><button id="l-vaciar">Vaciar</button></div>` : ""}
-    ${datos.length ? datos.map((t,i) => `<div class="lrow" data-i="${i}"><div class="tt"><b>${esc(t.titulo)}</b><small>${esc(t.banda)}</small></div>
+    ${datos.length ? datos.map((t,i) => `<div class="lrow" data-i="${i}"><div class="tt"><b>${esc(t.titulo)}${expT(t)}</b><small>${esc(t.banda)}</small></div>
         ${tab==="cola" ? `<button class="ib x" title="Quitar de la cola" aria-label="Quitar">${IC.x}</button>`
           : `<button class="ib fav" data-k="${esc(t.archivo)}" title="Me gusta" aria-label="Me gusta">${HV}</button><button class="ib q" title="Agregar a la cola" aria-label="Agregar a la cola">${IC.mas}</button>`}</div>`).join("")
       : `<p class="vacio">${VACIO[tab]}</p>`}
@@ -563,11 +564,13 @@ function reproducir(l, i){
   cola = l; idx = i; enCola = false; reanudar = null;
   cargar();
 }
+function expT(p){ return p && p.explicito ? '<span class="exp" title="Contenido explícito (lenguaje fuerte)" aria-label="Contenido explícito">E</span>' : ""; }
+function expL(l){ return (l.pistas||[]).some(p => p.explicito) ? expT({explicito:true}) : ""; }
 function cargar(){
   const p = cola.pistas[idx], pr = proy(cola.proyecto), bn = bandaDe(cola,p), por = p.portada || cola.portada;
   $("#player").classList.add("on");
   $("#player").style.setProperty("--acc", colorDe(cola.proyecto));
-  $("#p-titulo").textContent = p.titulo;
+  $("#p-titulo").innerHTML = esc(p.titulo) + expT(p);
   $("#p-sub").textContent = bn.nombre + " · " + cola.titulo;
   $("#p-mini").innerHTML = por
     ? `<img src="${esc(por)}" alt="" onerror="this.onerror=null;this.src='${esc(pr.logo||"icons/icon-192.png")}';this.style.objectFit='contain'">`
@@ -763,7 +766,7 @@ $("#b-instalar").onclick = async () => {
   try{ await promptInstalar.userChoice; }catch(_){}
   promptInstalar = null; $("#b-instalar").hidden = true;
 };
-const yaApp = matchMedia("(display-mode: standalone)").matches || navigator.standalone;
+const yaApp = (window.matchMedia && matchMedia("(display-mode: standalone)").matches) || navigator.standalone;
 setTimeout(() => { if(!promptInstalar && !yaApp) $("#b-instalar").hidden = false; }, 2500);
 window.addEventListener("appinstalled", () => { $("#b-instalar").hidden = true; });
 try{ if("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{}); }catch(e){}
