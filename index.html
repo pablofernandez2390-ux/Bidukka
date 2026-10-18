@@ -753,11 +753,18 @@ if(location.hash === "#vivos") abrirVivos(false);
 let promptInstalar = null;
 window.addEventListener("beforeinstallprompt", e => { e.preventDefault(); promptInstalar = e; $("#b-instalar").hidden = false; });
 $("#b-instalar").onclick = async () => {
-  if(!promptInstalar) return;
+  if(!promptInstalar){
+    const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
+    alert(ios ? "En iPhone/iPad: tocá el botón Compartir de Safari y elegí «Agregar a pantalla de inicio»."
+              : "Abrí el menú del navegador (⋮) y elegí «Instalar app» o «Agregar a pantalla de inicio».");
+    return;
+  }
   promptInstalar.prompt();
   try{ await promptInstalar.userChoice; }catch(_){}
   promptInstalar = null; $("#b-instalar").hidden = true;
 };
+const yaApp = matchMedia("(display-mode: standalone)").matches || navigator.standalone;
+setTimeout(() => { if(!promptInstalar && !yaApp) $("#b-instalar").hidden = false; }, 2500);
 window.addEventListener("appinstalled", () => { $("#b-instalar").hidden = true; });
 try{ if("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{}); }catch(e){}
 
